@@ -5,7 +5,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const query = body.query || "test";
 
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  // Strip BOM (PowerShell pipe can add ﻿) and whitespace
+  const apiKey = (process.env.DEEPSEEK_API_KEY || "").replace(/^./, (ch: string) => ch.charCodeAt(0) === 0xFEFF ? "" : ch).trim();
   if (!apiKey) return NextResponse.json({ error: "No API key" }, { status: 500 });
 
   try {
