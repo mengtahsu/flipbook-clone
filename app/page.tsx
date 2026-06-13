@@ -9,7 +9,7 @@ import AboutSection from "@/components/AboutSection";
 import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
-async function fetchBestImage(imageSearchTerm: string) {
+async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
   // Pexels: professional photos, guaranteed loadable, no hotlink issues
   try {
     const res = await fetch("/api/pexels", {
@@ -20,6 +20,16 @@ async function fetchBestImage(imageSearchTerm: string) {
     if (res.ok) {
       const photos = await res.json();
       if (Array.isArray(photos) && photos.length > 0) {
+        // Pick first photo not already used
+        for (const p of photos) {
+          if (!usedUrls.has(p.url)) {
+            return {
+              imageUrl: p.url,
+              imageCredit: { name: p.source || "Pexels", url: p.url },
+            };
+          }
+        }
+        // All duplicates — use first anyway
         return {
           imageUrl: photos[0].url,
           imageCredit: { name: photos[0].source || "Pexels", url: photos[0].url },
@@ -36,6 +46,11 @@ async function fetchBestImage(imageSearchTerm: string) {
       if (!res.ok) continue;
       const results = await res.json();
       if (Array.isArray(results) && results.length > 0) {
+        for (const r of results) {
+          if (!usedUrls.has(r.url)) {
+            return { imageUrl: r.url, imageCredit: { name: r.source || "DDG", url: r.url } };
+          }
+        }
         return { imageUrl: results[0].url, imageCredit: { name: results[0].source || "DDG", url: results[0].url } };
       }
     } catch { /* try next */ }
@@ -75,8 +90,9 @@ export default function HomePage() {
 
         const data = await res.json();
 
-        // Step 2: Race-load DDG images, pick first valid one
-        const image = await fetchBestImage(data.imageSearchTerm);
+        // Step 2: Fetch image, avoiding duplicates from previous layers
+        const usedUrls = new Set(pages.map((p) => p.imageUrl).filter(Boolean));
+        const image = await fetchBestImage(data.imageSearchTerm, usedUrls);
 
         const pageData: PageData = {
           query,
