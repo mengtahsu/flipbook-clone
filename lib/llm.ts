@@ -13,7 +13,7 @@ Fields:
 - title: page title in Chinese (max 20 chars).
 - description: 1-2 sentences in Chinese, very concise.
 - imageSearchTerm: 1-3 keywords in ENGLISH for photo search. Use visually rich, photogenic terms. Do NOT use "satellite map" or "aerial" — use real scene descriptions.
-- subtopics: array of 4-6 strings in Chinese. CRITICAL: each subtopic MUST include context from the query. For example, if query is "Bali", subtopics should be "Bali beaches" not just "beaches", "Bali temples" not "temples". This ensures clicking a subtopic gives relevant deep-dive results.
+- subtopics: array of 4-6 SHORT strings in Chinese (max 6 chars each). Keep labels concise — the parent topic will be added automatically when searching.
 
 Return ONLY valid JSON:
 {"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": ["...", "..."]}`;
