@@ -18,7 +18,7 @@ Fields:
 Return ONLY valid JSON:
 {"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": ["...", "..."]}`;
 
-const CLICK_FALLBACK_PROMPT = `You are helping a visual browser interpret user clicks. The user clicked on an image. Given the click position, page title, description, and exploration history, infer what the user clicked and generate a Chinese search query. Include context from the parent topic so the search is specific and relevant.`;
+const CLICK_FALLBACK_PROMPT = `You are helping a visual browser interpret user clicks. The user clicked on an image. Given the click position, page title, description, and exploration history, infer what the user clicked and generate a Chinese search query. Include context from the parent topic so the search is specific and relevant.
 
 Return ONLY valid JSON: {"subQuery": "the new Chinese search query"}`;
 
