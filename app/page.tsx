@@ -44,24 +44,30 @@ async function fetchDDGImage(imageSearchTerm: string) {
       } catch { /* retry */ }
     }
   }
-  // After all retries: a generic image is better than nothing
-  try {
-    const res = await fetch(DDG_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: "landscape nature travel" }),
-    });
-    if (res.ok) {
-      const results = await res.json();
-      if (Array.isArray(results) && results.length > 0) {
-        return {
-          imageUrl: results[0].url,
-          imageCredit: { name: "DDG", url: results[0].url },
-        };
-      }
+  // Keep retrying with longer delays — never give up
+  const fallbackTerms = ["landscape nature travel", "travel destination", "world map"];
+  for (const term of fallbackTerms) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 2000 * attempt));
+        const res = await fetch(DDG_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: term }),
+        });
+        if (!res.ok) continue;
+        const results = await res.json();
+        if (Array.isArray(results) && results.length > 0) {
+          return {
+            imageUrl: results[0].url,
+            imageCredit: { name: "DDG", url: results[0].url },
+          };
+        }
+      } catch { /* keep trying */ }
     }
-  } catch { /* absolute last resort */ }
+  }
 
+  // Absolute last resort — will retry again on next render
   return {
     imageUrl: "",
     imageCredit: { name: "", url: "" },

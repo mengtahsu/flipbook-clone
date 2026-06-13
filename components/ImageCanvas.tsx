@@ -81,12 +81,19 @@ export default function ImageCanvas({
               alt={page.title}
               draggable={false}
               onLoad={() => setIsImageLoaded(true)}
-              onError={() => setIsImageLoaded(false)}
+              onError={(e) => {
+                // Retry loading the image once
+                const img = e.currentTarget;
+                if (!img.dataset.retried) {
+                  img.dataset.retried = "1";
+                  setTimeout(() => { img.src = img.src + "?retry=1"; }, 1000);
+                } else {
+                  setIsImageLoaded(false);
+                }
+              }}
             />
           ) : (
-            <div className="empty-state" style={{ color: "white", padding: "2rem" }}>
-              <p>Loading image...</p>
-            </div>
+            <LoadingSpinner />
           )}
 
           {(isImageLoaded || !page.imageUrl) && (
