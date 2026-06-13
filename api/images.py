@@ -1,18 +1,17 @@
 """
-Vercel Python serverless function for DuckDuckGo Image Search.
-POST /api/images  { "query": "search terms" }
-Returns ranked, filtered image results (watermarks penalized).
+Vercel Python serverless function: DuckDuckGo Image Search.
+POST /api/images  { "query": "..." }
 """
 import json
+import time
 from http.server import BaseHTTPRequestHandler
 from ddgs import DDGS
 
-_LOW_QUALITY = {
+_WATERMARK_DOMAINS = {
     "shutterstock.com", "istockphoto.com", "gettyimages.com",
     "alamy.com", "depositphotos.com", "dreamstime.com", "123rf.com",
 }
-
-_PREFERRED = {
+_PREFERRED_DOMAINS = {
     "unsplash.com", "pexels.com", "pixabay.com", "flickr.com",
     "wikimedia.org", "wikipedia.org", "publicdomainpictures.net",
 }
@@ -32,9 +31,9 @@ def _score(img: dict) -> float:
         ratio = w / h
         if 1.2 <= ratio <= 2.0: score += 2
         elif 0.8 <= ratio <= 3.0: score += 1
-    for d in _LOW_QUALITY:
+    for d in _WATERMARK_DOMAINS:
         if d in url or d in source: score -= 5; break
-    for d in _PREFERRED:
+    for d in _PREFERRED_DOMAINS:
         if d in url or d in source: score += 3; break
     if len(img.get("title", "")) > 30: score += 0.5
     return score
@@ -42,11 +41,16 @@ def _score(img: dict) -> float:
 
 def search_images(query: str, max_results: int = 20) -> list[dict]:
     results = []
+    seen = set()
     try:
         with DDGS() as ddgs:
-            for r in ddgs.images(query, max_results=max_results):
+            for r in ddgs.images(query, max_results=max(max_results * 4, 30)):
+                url = r.get("image", "")
+                if not url or url in seen:
+                    continue
+                seen.add(url)
                 img = {
-                    "url": r.get("image", ""),
+                    "url": url,
                     "thumb": r.get("thumbnail", ""),
                     "title": r.get("title", ""),
                     "source": r.get("source", ""),
@@ -55,11 +59,16 @@ def search_images(query: str, max_results: int = 20) -> list[dict]:
                 }
                 img["_score"] = _score(img)
                 results.append(img)
+                if len(results) >= max_results:
+                    break
     except Exception:
-        return []
-    results.sort(key=lambda x: (x["_score"], x["width"] * x["height"]), reverse=True)
-    for r in results:
-        del r["_score"]
+        pass  # Return whatever we got (may be empty — caller handles)
+
+    if results:
+        results.sort(key=lambda x: (x["_score"], x["width"] * x["height"]), reverse=True)
+        for r in results:
+            del r["_score"]
+
     return results
 
 
@@ -72,7 +81,7 @@ class handler(BaseHTTPRequestHandler):
             self._respond(400, {"error": "Missing query"})
             return
         results = search_images(query)
-        self._respond(200, results)
+        self._respond(200 if results else 204, results)
 
     def do_OPTIONS(self):
         self.send_response(204)

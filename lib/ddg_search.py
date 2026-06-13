@@ -1,109 +1,65 @@
 """
-DuckDuckGo Image Search helper for Flipbook Clone.
-Fetches many images, filters watermarks, scores quality, returns best.
-
+DuckDuckGo Image Search helper (local dev fallback).
 Usage: python ddg_search.py "search query"
-Output: JSON array of image results to stdout (sorted best-first)
 """
-import sys
-import json
+import sys, json
 from ddgs import DDGS
 
-# Domains known for watermarks or low-quality stock photos — deprioritize
-LOW_QUALITY_DOMAINS = {
+_LOW_QUALITY = {
     "shutterstock.com", "istockphoto.com", "gettyimages.com",
     "alamy.com", "depositphotos.com", "dreamstime.com", "123rf.com",
-    "adobe.com/stock", "stock.adobe.com",
 }
-
-# Preferred domains — free/CC image hosts
-PREFERRED_DOMAINS = {
+_PREFERRED = {
     "unsplash.com", "pexels.com", "pixabay.com", "flickr.com",
-    "wikimedia.org", "wikipedia.org", "commons.wikimedia.org",
-    "publicdomainpictures.net", "freeimages.com",
+    "wikimedia.org", "wikipedia.org", "publicdomainpictures.net",
 }
 
 
-def score_image(img: dict) -> float:
-    """Score an image result. Higher = better."""
-    score = 0.0
+def _score(img: dict) -> float:
+    s = 0.0
     url = img.get("url", "").lower()
-    source = img.get("source", "").lower()
-
-    # Prefer larger images
-    width = int(img.get("width", 0))
-    height = int(img.get("height", 0))
-    pixels = width * height
-    if pixels >= 2000000:   # 2MP+
-        score += 3
-    elif pixels >= 800000:  # 0.8MP+
-        score += 2
-    elif pixels >= 300000:  # 0.3MP+
-        score += 1
-
-    # Prefer reasonable aspect ratio (not extreme panoramas or tall crops)
-    if width > 0 and height > 0:
-        ratio = width / height
-        if 1.2 <= ratio <= 2.0:
-            score += 2
-        elif 0.8 <= ratio <= 1.2 or 2.0 < ratio <= 3.0:
-            score += 1
-
-    # Penalize watermarked stock sites
-    for domain in LOW_QUALITY_DOMAINS:
-        if domain in url or domain in source:
-            score -= 5
-            break
-
-    # Reward preferred sources
-    for domain in PREFERRED_DOMAINS:
-        if domain in url or domain in source:
-            score += 3
-            break
-
-    # Title length heuristic — very short titles often = low effort
-    title_len = len(img.get("title", ""))
-    if title_len > 30:
-        score += 0.5
-
-    return score
+    src = img.get("source", "").lower()
+    w, h = int(img.get("width", 0)), int(img.get("height", 0))
+    px = w * h
+    if px >= 2_000_000: s += 3
+    elif px >= 800_000: s += 2
+    elif px >= 300_000: s += 1
+    if w > 0 and h > 0:
+        r = w / h
+        if 1.2 <= r <= 2.0: s += 2
+        elif 0.8 <= r <= 3.0: s += 1
+    for d in _LOW_QUALITY:
+        if d in url or d in src: s -= 5; break
+    for d in _PREFERRED:
+        if d in url or d in src: s += 3; break
+    if len(img.get("title", "")) > 30: s += 0.5
+    return s
 
 
-def search_images(query: str, max_results: int = 20) -> list[dict]:
-    """Search DuckDuckGo for images, filter, score, and sort."""
-    results: list[dict] = []
+def search_images(query: str, max_results: int = 20) -> list:
+    results, seen = [], set()
     try:
         with DDGS() as ddgs:
-            for result in ddgs.images(query, max_results=max_results):
+            for r in ddgs.images(query, max_results=60):
+                url = r.get("image", "")
+                if not url or url in seen: continue
+                seen.add(url)
                 img = {
-                    "url": result.get("image", ""),
-                    "thumb": result.get("thumbnail", ""),
-                    "title": result.get("title", ""),
-                    "source": result.get("source", ""),
-                    "width": int(result.get("width", 0)),
-                    "height": int(result.get("height", 0)),
+                    "url": url, "thumb": r.get("thumbnail", ""),
+                    "title": r.get("title", ""), "source": r.get("source", ""),
+                    "width": int(r.get("width", 0)), "height": int(r.get("height", 0)),
                 }
-                img["_score"] = score_image(img)
+                img["_score"] = _score(img)
                 results.append(img)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return []
+                if len(results) >= max_results: break
+    except Exception: pass
 
-    # Sort by score descending, then by resolution
-    results.sort(key=lambda x: (x["_score"], x["width"] * x["height"]), reverse=True)
-
-    # Remove scoring key from output
-    for r in results:
-        del r["_score"]
-
+    if results:
+        results.sort(key=lambda x: (x["_score"], x["width"] * x["height"]), reverse=True)
+        for r in results: del r["_score"]
     return results
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print(json.dumps([]))
-        sys.exit(0)
-
-    query = " ".join(sys.argv[1:])
-    images = search_images(query)
-    print(json.dumps(images, ensure_ascii=True))
+    q = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
+    print(json.dumps(search_images(q), ensure_ascii=True))

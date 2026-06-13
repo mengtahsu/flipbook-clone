@@ -133,10 +133,31 @@ export async function inferClickIntent(
   breadcrumbs: string[],
   regions?: ImageRegion[]
 ): Promise<ClickInference> {
-  // Build region list for the prompt
-  const regionText = regions && regions.length > 0
-    ? `\nImage regions (with positions):\n${regions.map((r) => `- "${r.label}" at (${r.x}%, ${r.y}%): ${r.description}`).join("\n")}`
-    : "";
+  // If we have regions, find the closest one by Euclidean distance
+  let clickedLabel = "";
+  let clickedDesc = "";
+
+  if (regions && regions.length > 0) {
+    let best: ImageRegion | null = null;
+    let bestDist = Infinity;
+    for (const r of regions) {
+      const dx = r.x - x;
+      const dy = r.y - y;
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = r;
+      }
+    }
+    if (best) {
+      clickedLabel = best.label;
+      clickedDesc = best.description;
+    }
+  }
+
+  const regionContext = clickedLabel
+    ? `\nThe user clicked closest to region: "${clickedLabel}" — ${clickedDesc}. Generate a query about ${clickedLabel}.`
+    : `\n(No specific regions defined — infer from general knowledge what's at (${x}%, ${y}%) on an image about this topic.)`;
 
   const text = await deepseekChat([
     { role: "system", content: CLICK_SYSTEM_PROMPT },
@@ -145,9 +166,7 @@ export async function inferClickIntent(
       content: `Page title: "${currentTitle}"
 Page description: "${currentDescription}"
 Exploration history: ${breadcrumbs.length > 0 ? breadcrumbs.join(" > ") : "(start)"}
-Click position: (${x}%, ${y}%)${regionText}
-
-Find the region closest to the click and generate a search query for that topic.`,
+Click position: (${x}%, ${y}%)${regionContext}`,
     },
   ]);
 

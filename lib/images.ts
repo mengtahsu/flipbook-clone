@@ -21,22 +21,26 @@ const DDG_ENDPOINT = "https://flipbook-clone-five.vercel.app/api/images";
 
 /**
  * DuckDuckGo image search via Python endpoint (Vercel).
- * Uses the Python serverless function at /api/images.
- * DDG has broader coverage and user prefers it.
+ * Retries once on failure (DDG rate limits are common).
  */
 async function searchDDGEndpoint(query: string): Promise<ImageResult[] | null> {
-  try {
-    const res = await fetch(DDG_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as ImageResult[];
-  } catch {
-    return null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(DDG_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as ImageResult[];
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch { /* retry */ }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 2000));
   }
+  return null;
+}
 }
 
 /**
