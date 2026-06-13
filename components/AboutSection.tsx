@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-14.nobroken";
+const VERSION = "2026-06-14.race";
 
 export default function AboutSection() {
   return (

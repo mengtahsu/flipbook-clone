@@ -12,15 +12,17 @@ import type { PageData } from "@/lib/types";
 // DDG endpoint — called from browser (works because it's public)
 const DDG_ENDPOINT = "https://flipbook-clone-five.vercel.app/api/images";
 
-// Fetch ALL DDG image URLs for a term. Returns all results so we can try
-// multiple images if some URLs are dead (hotlink blocking is common).
-async function fetchDDGImages(imageSearchTerm: string) {
+// Fetch DDG images and race-load them in parallel to find the best valid URL
+async function fetchBestImage(imageSearchTerm: string) {
   const terms = [
     imageSearchTerm,
     imageSearchTerm.split(" ").slice(0, 2).join(" "),
     imageSearchTerm.split(" ")[0],
   ].filter((t, i, a) => t && a.indexOf(t) === i);
 
+  let allUrls: Array<{url: string; credit: {name: string; url: string}}> = [];
+
+  // Collect URLs from DDG
   for (const term of terms) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -33,15 +35,42 @@ async function fetchDDGImages(imageSearchTerm: string) {
         if (!res.ok) continue;
         const results: Array<{url: string; title: string; source: string}> = await res.json();
         if (Array.isArray(results) && results.length > 0) {
-          return results.map((r) => ({
-            imageUrl: r.url,
-            imageCredit: { name: r.source || r.title || "DDG", url: r.url },
+          allUrls = results.map((r) => ({
+            url: r.url,
+            credit: { name: r.source || r.title || "DDG", url: r.url },
           }));
+          break; // Got results, stop trying terms
         }
       } catch { /* retry */ }
     }
+    if (allUrls.length > 0) break;
   }
-  return [];
+
+  if (allUrls.length === 0) return null;
+
+  // Race-load: try batches of 5 URLs in parallel, pick first to load
+  for (let i = 0; i < allUrls.length; i += 5) {
+    const batch = allUrls.slice(i, i + 5);
+    const winner = await Promise.race(
+      batch.map(
+        (item) =>
+          new Promise<typeof item>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(item);
+            img.onerror = () => {}; // Silently fail, another may win
+            img.src = item.url;
+            // Timeout after 6s — move to next batch
+            setTimeout(() => {}, 6000);
+          })
+      )
+    );
+    if (winner) {
+      return { imageUrl: winner.url, imageCredit: winner.credit };
+    }
+  }
+
+  // All failed — return first as last resort
+  return { imageUrl: allUrls[0].url, imageCredit: allUrls[0].credit };
 }
 
 export default function HomePage() {
@@ -75,21 +104,19 @@ export default function HomePage() {
 
         const data = await res.json();
 
-        // Step 2: Fetch ALL DDG images — ImageCanvas will try each URL until one loads
-        const images = await fetchDDGImages(data.imageSearchTerm);
+        // Step 2: Race-load DDG images, pick first valid one
+        const image = await fetchBestImage(data.imageSearchTerm);
 
-        const backups = images.slice(1).map((i: {imageUrl: string}) => i.imageUrl);
-        const pageData = {
+        const pageData: PageData = {
           query,
-          imageUrl: images.length > 0 ? images[0].imageUrl : "",
-          imageCredit: images.length > 0 ? images[0].imageCredit : { name: "", url: "" },
-          backupUrls: backups,
+          imageUrl: image?.imageUrl || "",
+          imageCredit: image?.imageCredit || { name: "", url: "" },
           title: data.title,
           description: data.description,
           subtopics: data.subtopics,
-        } as PageData & { backupUrls: string[] };
+        };
 
-        if (images.length === 0) {
+        if (!image) {
           setError("No image found. Try a different search.");
         }
 
