@@ -15,9 +15,9 @@ export interface ImageSearchResponse {
   imageCredit: { name: string; url: string };
 }
 
-const BASE_URL = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3456";
+const DDG_ENDPOINT = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}/api/images`
+  : "http://localhost:3456/api/images";
 
 /**
  * DuckDuckGo image search via Python endpoint (Vercel).
@@ -26,7 +26,7 @@ const BASE_URL = process.env.VERCEL_URL
  */
 async function searchDDGEndpoint(query: string): Promise<ImageResult[] | null> {
   try {
-    const res = await fetch(`${BASE_URL}/api/images`, {
+    const res = await fetch(DDG_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
