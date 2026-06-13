@@ -5,6 +5,7 @@ import BrowserShell from "@/components/BrowserShell";
 import BrowserToolbar from "@/components/BrowserToolbar";
 import BrowserContent from "@/components/BrowserContent";
 import ImageCanvas from "@/components/ImageCanvas";
+import InfoPanel from "@/components/InfoPanel";
 import AboutSection from "@/components/AboutSection";
 import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
@@ -201,6 +202,19 @@ export default function HomePage() {
             onSubtopicClick={handleSubtopicClick}
           />
         </BrowserContent>
+
+        {/* Info card below the image */}
+        {currentPage && (
+          <div className="info-card">
+            <InfoPanel
+              title={currentPage.title}
+              description={currentPage.description}
+              credit={currentPage.imageCredit}
+              subtopics={currentPage.subtopics}
+              onSubtopicClick={handleSubtopicClick}
+            />
+          </div>
+        )}
       </BrowserShell>
 
       <AboutSection />

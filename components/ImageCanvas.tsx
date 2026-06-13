@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef } from "react";
 import ClickOverlay from "./ClickOverlay";
-import InfoPanel from "./InfoPanel";
 import DepthIndicator from "./DepthIndicator";
 import LoadingSpinner from "./LoadingSpinner";
 import type { PageData } from "@/lib/types";
@@ -102,14 +101,6 @@ export default function ImageCanvas({
               <ClickOverlay
                 enabled={!isLoading && !atMaxDepth && isImageLoaded}
                 onClick={handleClick}
-              />
-
-              <InfoPanel
-                title={page.title}
-                description={page.description}
-                credit={page.imageCredit}
-                subtopics={page.subtopics}
-                onSubtopicClick={onSubtopicClick}
               />
 
               {atMaxDepth && (

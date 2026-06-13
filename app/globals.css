@@ -509,6 +509,70 @@ a:hover {
   background: oklch(100% 0 0 / 0.15);
 }
 
+/* --- Info Card (below image) --- */
+.info-card {
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--color-surface-raised);
+  border-top: 1px solid var(--color-chrome-border);
+}
+
+.info-card .info-panel {
+  position: static;
+  background: none;
+  padding: 0;
+  color: var(--color-text);
+  pointer-events: auto;
+}
+
+.info-card .info-panel-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--space-sm);
+}
+
+.info-card .info-panel-description {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+  max-width: none;
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.info-card .info-panel-subtopics {
+  margin-top: var(--space-md);
+  gap: var(--space-sm);
+}
+
+.info-card .info-panel-subtopic {
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  border: 1px solid var(--color-chrome-border);
+  color: var(--color-text-secondary);
+  opacity: 1;
+  background: var(--color-surface);
+}
+
+.info-card .info-panel-subtopic:hover {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+
+.info-card .info-panel-credit {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-chrome-border);
+}
+
+.info-card .info-panel-credit a {
+  color: var(--color-accent);
+}
+
 /* --- Depth Indicator --- */
 .depth-indicator {
   position: absolute;
