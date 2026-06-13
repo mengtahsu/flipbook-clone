@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-13.auto-retry";
+const VERSION = "2026-06-14.vc";
 
 export default function AboutSection() {
   return (
