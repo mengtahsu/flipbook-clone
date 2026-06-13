@@ -14,6 +14,7 @@ interface ImageCanvasProps {
   isLoading: boolean;
   error: string | null;
   onImageClick: (x: number, y: number, imageWidth: number, imageHeight: number) => void;
+  onSubtopicClick?: (topic: string) => void;
 }
 
 export default function ImageCanvas({
@@ -23,6 +24,7 @@ export default function ImageCanvas({
   isLoading,
   error,
   onImageClick,
+  onSubtopicClick,
 }: ImageCanvasProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
@@ -94,6 +96,7 @@ export default function ImageCanvas({
                 description={page.description}
                 credit={page.imageCredit}
                 subtopics={page.subtopics}
+                onSubtopicClick={onSubtopicClick}
               />
 
               {/* Max depth warning */}

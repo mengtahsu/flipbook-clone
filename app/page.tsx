@@ -13,25 +13,33 @@ import type { PageData } from "@/lib/types";
 const DDG_ENDPOINT = "https://flipbook-clone-five.vercel.app/api/images";
 
 async function fetchDDGImage(imageSearchTerm: string) {
-  try {
-    const res = await fetch(DDG_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: imageSearchTerm }),
-    });
-    if (!res.ok) return null;
-    const results = await res.json();
-    if (!Array.isArray(results) || results.length === 0) return null;
-    return {
-      imageUrl: results[0].url,
-      imageCredit: {
-        name: results[0].source || results[0].title || "DDG",
-        url: results[0].url,
-      },
-    };
-  } catch {
-    return null;
+  // Try variations of the search term for reliability
+  const terms = [
+    imageSearchTerm,
+    imageSearchTerm.split(" ").slice(0, 2).join(" "),
+    imageSearchTerm.split(" ")[0],
+  ].filter((t, i, a) => a.indexOf(t) === i); // unique
+
+  for (const term of terms) {
+    try {
+      const res = await fetch(DDG_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: term }),
+      });
+      if (!res.ok) continue;
+      const results = await res.json();
+      if (!Array.isArray(results) || results.length === 0) continue;
+      return {
+        imageUrl: results[0].url,
+        imageCredit: {
+          name: results[0].source || results[0].title || "DDG",
+          url: results[0].url,
+        },
+      };
+    } catch { /* try next term */ }
   }
+  return null;
 }
 
 export default function HomePage() {
@@ -149,6 +157,16 @@ export default function HomePage() {
     setError(null);
   }, []);
 
+  // Direct subtopic click — search immediately, no position interpretation needed
+  const handleSubtopicClick = useCallback(
+    (topic: string) => {
+      if (isLoading) return;
+      if (currentDepth >= MAX_DEPTH) return;
+      performSearch(topic, currentDepth + 1);
+    },
+    [currentDepth, isLoading, performSearch]
+  );
+
   const handleClear = useCallback(() => {
     setPages([]);
     setCurrentDepth(0);
@@ -173,6 +191,7 @@ export default function HomePage() {
             isLoading={isLoading}
             error={error}
             onImageClick={handleImageClick}
+            onSubtopicClick={handleSubtopicClick}
           />
         </BrowserContent>
       </BrowserShell>
