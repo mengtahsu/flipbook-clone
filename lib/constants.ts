@@ -1,5 +1,5 @@
 /** Maximum exploration depth (layers) */
-export const MAX_DEPTH = 4;
+export const MAX_DEPTH = 8;
 
 /** DeepSeek model */
 export const DEEPSEEK_MODEL = "deepseek-chat";

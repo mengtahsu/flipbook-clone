@@ -8,26 +8,26 @@ function getApiKey(): string {
   return raw.replace(/^./, (ch: string) => ch.charCodeAt(0) === 0xFEFF ? "" : ch).trim();
 }
 
-const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, you must return a JSON object with these exact fields:
+const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, you must return a JSON object with these exact fields. ALL text output MUST be in Chinese (Simplified Chinese):
 
-- title: A compelling page title (max 60 chars).
-- description: A 2-3 sentence overview of the topic, educational and engaging.
-- imageSearchTerm: 1-3 keywords in English optimized for finding a relevant photograph via image search. Choose terms that are visually rich and photogenic.
-- subtopics: An array of 4-6 strings. Each is a sub-topic someone might want to explore by clicking on different parts of the image. These help the user understand what they can discover next.
+- title: A compelling page title in Chinese (max 20 Chinese characters).
+- description: A 1-2 sentence overview in Chinese, very concise.
+- imageSearchTerm: 1-3 keywords in ENGLISH optimized for finding a relevant photograph via image search. These should be visual, photogenic search terms in English.
+- subtopics: An array of 4-6 strings in Chinese. Each is a sub-topic someone might want to explore by clicking on different parts of the image.
 
 Return ONLY valid JSON, no other text. Use this exact format:
 {"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": ["...", "..."]}`;
 
 const CLICK_SYSTEM_PROMPT = `You are helping a visual browser interpret user clicks. A user is exploring a visual page and has clicked somewhere on the image.
 
-Given the click position (as percentage of image dimensions), the page title, description, and the exploration history, you must infer what the user likely clicked on and generate a new search query for deeper exploration.
+Given the click position (as percentage of image dimensions), the page title, description, and the exploration history, you must infer what the user likely clicked on and generate a new search query for deeper exploration. Output the query in Chinese.
 
 The query should be:
 - Specific and focused (not too broad)
-- Naturally phrased (like what someone would search for)
+- Naturally phrased in Chinese
 - Related to what a reasonable person would expect to find at that position on an image about this topic
 
-Return ONLY valid JSON: {"subQuery": "the new search query"}`;
+Return ONLY valid JSON: {"subQuery": "the new Chinese search query"}`;
 
 export interface SearchBreakdown {
   title: string;
