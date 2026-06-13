@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-14.race2";
+const VERSION = "2026-06-14.pexels";
 
 export default function AboutSection() {
   return (
