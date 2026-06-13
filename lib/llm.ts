@@ -8,32 +8,48 @@ function getApiKey(): string {
   return raw.replace(/^./, (ch: string) => ch.charCodeAt(0) === 0xFEFF ? "" : ch).trim();
 }
 
-const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, you must return a JSON object with these exact fields. ALL text output MUST be in Chinese (Simplified Chinese):
+const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, return a JSON object. ALL text MUST be in Chinese except imageSearchTerm (English for photo search).
 
-- title: A compelling page title in Chinese (max 20 Chinese characters).
-- description: A 1-2 sentence overview in Chinese, very concise.
-- imageSearchTerm: 1-3 keywords in ENGLISH optimized for finding a relevant photograph via image search. These should be visual, photogenic search terms in English.
-- subtopics: An array of 4-6 strings in Chinese. Each is a sub-topic someone might want to explore by clicking on different parts of the image.
+Fields:
+- title: page title in Chinese (max 20 chars).
+- description: 1-2 sentences in Chinese, very concise.
+- imageSearchTerm: 1-3 keywords in ENGLISH for photo search. For places/locations, prefer "aerial view" or "map" style terms so the photo shows the layout.
+- subtopics: array of 4-6 strings in Chinese.
+- regions: array of 4-8 objects describing key areas in this image. Each has:
+  * label: short Chinese name (max 8 chars)
+  * description: what's there (Chinese, max 20 chars)
+  * x: horizontal center % (0-100, approximate)
+  * y: vertical center % (0-100, approximate)
 
-Return ONLY valid JSON, no other text. Use this exact format:
-{"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": ["...", "..."]}`;
+IMPORTANT for places: arrange regions to roughly match a map layout. Top area = north, bottom = south, left = west, right = east. Space them across the whole image.
 
-const CLICK_SYSTEM_PROMPT = `You are helping a visual browser interpret user clicks. A user is exploring a visual page and has clicked somewhere on the image.
+Return ONLY valid JSON:
+{"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": [...], "regions": [{"label": "...", "description": "...", "x": 30, "y": 50}]}`;
 
-Given the click position (as percentage of image dimensions), the page title, description, and the exploration history, you must infer what the user likely clicked on and generate a new search query for deeper exploration. Output the query in Chinese.
+const CLICK_SYSTEM_PROMPT = `You are helping a visual browser interpret user clicks. A user clicked on an image at a specific position.
 
-The query should be:
-- Specific and focused (not too broad)
-- Naturally phrased in Chinese
-- Related to what a reasonable person would expect to find at that position on an image about this topic
+You will be given:
+- Click position as (x%, y%)
+- The page title and description
+- Known image regions with their positions
+
+Find the CLOSEST region to the click position (shortest distance). Generate a new Chinese search query that explores THAT region's topic in depth. Be specific — use the region's label and description.
 
 Return ONLY valid JSON: {"subQuery": "the new Chinese search query"}`;
+
+export interface ImageRegion {
+  label: string;
+  description: string;
+  x: number;
+  y: number;
+}
 
 export interface SearchBreakdown {
   title: string;
   description: string;
   imageSearchTerm: string;
   subtopics: string[];
+  regions: ImageRegion[];
 }
 
 export interface ClickInference {
@@ -105,6 +121,7 @@ export async function breakdownQuery(
     description: parsed.description,
     imageSearchTerm: parsed.imageSearchTerm,
     subtopics: Array.isArray(parsed.subtopics) ? parsed.subtopics : [],
+    regions: Array.isArray(parsed.regions) ? parsed.regions : [],
   };
 }
 
@@ -113,9 +130,13 @@ export async function inferClickIntent(
   y: number,
   currentTitle: string,
   currentDescription: string,
-  breadcrumbs: string[]
+  breadcrumbs: string[],
+  regions?: ImageRegion[]
 ): Promise<ClickInference> {
-  const positionDescription = describePosition(x, y);
+  // Build region list for the prompt
+  const regionText = regions && regions.length > 0
+    ? `\nImage regions (with positions):\n${regions.map((r) => `- "${r.label}" at (${r.x}%, ${r.y}%): ${r.description}`).join("\n")}`
+    : "";
 
   const text = await deepseekChat([
     { role: "system", content: CLICK_SYSTEM_PROMPT },
@@ -124,9 +145,9 @@ export async function inferClickIntent(
       content: `Page title: "${currentTitle}"
 Page description: "${currentDescription}"
 Exploration history: ${breadcrumbs.length > 0 ? breadcrumbs.join(" > ") : "(start)"}
-Click position: (${x}%, ${y}%) — ${positionDescription}
+Click position: (${x}%, ${y}%)${regionText}
 
-What did the user click on? Generate a new search query.`,
+Find the region closest to the click and generate a search query for that topic.`,
     },
   ]);
 
@@ -137,11 +158,4 @@ What did the user click on? Generate a new search query.`,
   }
 
   return { subQuery: parsed.subQuery };
-}
-
-function describePosition(x: number, y: number): string {
-  const vertical = y < 30 ? "upper" : y > 70 ? "lower" : "middle";
-  const horizontal = x < 30 ? "left" : x > 70 ? "right" : "center";
-  if (vertical === "middle" && horizontal === "center") return "center of the image";
-  return `${vertical}-${horizontal} area of the image`;
 }

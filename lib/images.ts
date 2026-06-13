@@ -12,57 +12,35 @@ export interface ImageResult {
 
 export interface ImageSearchResponse {
   imageUrl: string;
-  imageCredit: {
-    name: string;
-    url: string;
-  };
+  imageCredit: { name: string; url: string };
 }
 
+const BASE_URL = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3456";
+
 /**
- * Search Pexels (pure Node.js, works everywhere including Vercel).
- * Free tier: 200 req/hour. Needs PEXELS_API_KEY env var.
- * Returns up to 10 results.
+ * DuckDuckGo image search via Python endpoint (Vercel).
+ * Uses the Python serverless function at /api/images.
+ * DDG has broader coverage and user prefers it.
  */
-async function searchPexels(query: string): Promise<ImageResult[] | null> {
-  const key = process.env.PEXELS_API_KEY;
-  if (!key) return null;
-
+async function searchDDGEndpoint(query: string): Promise<ImageResult[] | null> {
   try {
-    const res = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=10&orientation=landscape`,
-      { headers: { Authorization: key }, signal: AbortSignal.timeout(10000) }
-    );
+    const res = await fetch(`${BASE_URL}/api/images`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+      signal: AbortSignal.timeout(12000),
+    });
     if (!res.ok) return null;
-
-    const data = (await res.json()) as {
-      photos: Array<{
-        id: number;
-        width: number;
-        height: number;
-        url: string;
-        src: { large: string; medium: string; tiny: string };
-        alt: string;
-        photographer: string;
-        photographer_url: string;
-      }>;
-    };
-
-    return data.photos.map((p) => ({
-      url: p.src.large,
-      thumb: p.src.tiny,
-      title: p.alt || query,
-      source: p.photographer,
-      width: p.width,
-      height: p.height,
-    }));
+    return (await res.json()) as ImageResult[];
   } catch {
     return null;
   }
 }
 
 /**
- * Search DuckDuckGo via Python ddgs (local dev only).
- * Falls back to this if Pexels is unavailable.
+ * DuckDuckGo via local Python child_process (dev fallback).
  */
 function searchDDGLocal(query: string): Promise<ImageResult[]> {
   return new Promise((resolve, reject) => {
@@ -77,33 +55,60 @@ function searchDDGLocal(query: string): Promise<ImageResult[]> {
       },
       (error, stdout) => {
         if (error) { reject(error); return; }
-        try {
-          resolve(JSON.parse(stdout) as ImageResult[]);
-        } catch (e) {
-          reject(e);
-        }
+        try { resolve(JSON.parse(stdout) as ImageResult[]); }
+        catch (e) { reject(e); }
       }
     );
   });
 }
 
 /**
- * Search for a photo. Tries Pexels first (works on Vercel),
- * then falls back to local DDG (needs Python). Results are
- * sorted by Pexels quality or DDG scoring.
+ * Pexels API fallback (pure Node.js, works everywhere with key).
+ */
+async function searchPexels(query: string): Promise<ImageResult[] | null> {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=10&orientation=landscape`,
+      { headers: { Authorization: key }, signal: AbortSignal.timeout(10000) }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      photos: Array<{
+        width: number; height: number;
+        src: { large: string; tiny: string };
+        alt: string; photographer: string;
+      }>;
+    };
+    return data.photos.map((p) => ({
+      url: p.src.large,
+      thumb: p.src.tiny,
+      title: p.alt || query,
+      source: p.photographer,
+      width: p.width,
+      height: p.height,
+    }));
+  } catch { return null; }
+}
+
+/**
+ * Search for a photo. DDG first (broader coverage, user preference),
+ * then Pexels as fallback.
  */
 export async function searchPhoto(query: string): Promise<ImageSearchResponse | null> {
   try {
-    // Try Pexels (works on Vercel, high quality, no watermarks)
-    let results = await searchPexels(query);
+    // 1. DDG Python endpoint (works on Vercel with Python runtime)
+    let results = await searchDDGEndpoint(query);
 
-    // Fall back to local DDG
+    // 2. DDG local (works in dev with Python installed)
     if (!results || results.length === 0) {
-      try {
-        results = await searchDDGLocal(query);
-      } catch {
-        // DDG unavailable (e.g., on Vercel without Pexels key)
-      }
+      try { results = await searchDDGLocal(query); } catch { /* ok */ }
+    }
+
+    // 3. Pexels fallback
+    if (!results || results.length === 0) {
+      results = await searchPexels(query);
     }
 
     if (!results || results.length === 0) {
@@ -112,7 +117,6 @@ export async function searchPhoto(query: string): Promise<ImageSearchResponse | 
     }
 
     const photo = results[0];
-
     return {
       imageUrl: photo.url,
       imageCredit: {

@@ -95,6 +95,7 @@ export default function HomePage() {
             currentDescription: currentPage.description,
             breadcrumbs: pages.map((p) => p.title),
             depth: currentDepth,
+            regions: currentPage.regions,
           }),
         });
 

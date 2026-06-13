@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     title: breakdown.title,
     description: breakdown.description,
     subtopics: breakdown.subtopics,
+    regions: breakdown.regions,
   };
 
   return NextResponse.json(response);

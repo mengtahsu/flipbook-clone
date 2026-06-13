@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
       body.y,
       body.currentTitle || "Unknown",
       body.currentDescription || "No description available",
-      breadcrumbs
+      breadcrumbs,
+      body.regions
     );
 
     console.log(`[click] -> subQuery: "${inference.subQuery}"`);
