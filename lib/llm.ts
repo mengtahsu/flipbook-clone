@@ -1,10 +1,17 @@
 import OpenAI from "openai";
 import { DEEPSEEK_MODEL, MAX_TOKENS } from "./constants";
 
-const openai = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: "https://api.deepseek.com/v1",
-});
+let _openai: OpenAI | null = null;
+
+function getClient(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      baseURL: "https://api.deepseek.com/v1",
+    });
+  }
+  return _openai;
+}
 
 const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, you must return a JSON object with these exact fields:
 
@@ -47,7 +54,7 @@ export async function breakdownQuery(
       ? `\n\nExploration context (the user drilled down from these pages): ${breadcrumbs.join(" > ")}`
       : "";
 
-  const response = await openai.chat.completions.create({
+  const response = await getClient().chat.completions.create({
     model: DEEPSEEK_MODEL,
     max_tokens: MAX_TOKENS,
     messages: [
@@ -87,7 +94,7 @@ export async function inferClickIntent(
 ): Promise<ClickInference> {
   const positionDescription = describePosition(x, y);
 
-  const response = await openai.chat.completions.create({
+  const response = await getClient().chat.completions.create({
     model: DEEPSEEK_MODEL,
     max_tokens: MAX_TOKENS,
     messages: [
