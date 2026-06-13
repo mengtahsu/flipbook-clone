@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-14.pexels";
+const VERSION = "2026-06-14.short";
 
 export default function AboutSection() {
   return (
