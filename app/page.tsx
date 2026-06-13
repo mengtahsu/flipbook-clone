@@ -48,19 +48,18 @@ async function fetchBestImage(imageSearchTerm: string) {
 
   if (allUrls.length === 0) return null;
 
-  // Race-load: try batches of 5 URLs in parallel, pick first to load
+  // Race-load: try batches in parallel, pick first to actually load
   for (let i = 0; i < allUrls.length; i += 5) {
     const batch = allUrls.slice(i, i + 5);
     const winner = await Promise.race(
       batch.map(
         (item) =>
-          new Promise<typeof item>((resolve) => {
+          new Promise<typeof item | null>((resolve) => {
             const img = new Image();
-            img.onload = () => resolve(item);
-            img.onerror = () => {}; // Silently fail, another may win
+            const tid = setTimeout(() => resolve(null), 5000); // batch timeout
+            img.onload = () => { clearTimeout(tid); resolve(item); };
+            img.onerror = () => { clearTimeout(tid); resolve(null); };
             img.src = item.url;
-            // Timeout after 6s — move to next batch
-            setTimeout(() => {}, 6000);
           })
       )
     );
@@ -69,7 +68,7 @@ async function fetchBestImage(imageSearchTerm: string) {
     }
   }
 
-  // All failed — return first as last resort
+  // All batches failed — use first URL with onerror fallback in the DOM
   return { imageUrl: allUrls[0].url, imageCredit: allUrls[0].credit };
 }
 

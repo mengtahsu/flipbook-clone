@@ -81,7 +81,15 @@ export default function ImageCanvas({
               alt={page.title}
               draggable={false}
               onLoad={() => setIsImageLoaded(true)}
-              onError={() => setIsImageLoaded(false)}
+              onError={(e) => {
+                const img = e.currentTarget;
+                const tried = parseInt(img.dataset.tried || "1", 10);
+                // Try adding cache-bust to retry same URL once
+                if (tried === 1) {
+                  img.dataset.tried = "2";
+                  img.src = img.src.includes("?") ? img.src + "&r=1" : img.src + "?r=1";
+                }
+              }}
             />
           ) : (
             <LoadingSpinner />
