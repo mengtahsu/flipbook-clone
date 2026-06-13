@@ -17,7 +17,9 @@ async function fetchDDGImage(imageSearchTerm: string) {
     imageSearchTerm,
     imageSearchTerm.split(" ").slice(0, 2).join(" "),
     imageSearchTerm.split(" ")[0],
-  ].filter((t, i, a) => a.indexOf(t) === i);
+    "travel " + imageSearchTerm.split(" ").pop(),
+    "landscape nature",
+  ].filter((t, i, a) => t && a.indexOf(t) === i);
 
   for (const term of terms) {
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -42,10 +44,27 @@ async function fetchDDGImage(imageSearchTerm: string) {
       } catch { /* retry */ }
     }
   }
-  // Never return null — last resort placeholder
+  // After all retries: a generic image is better than nothing
+  try {
+    const res = await fetch(DDG_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "landscape nature travel" }),
+    });
+    if (res.ok) {
+      const results = await res.json();
+      if (Array.isArray(results) && results.length > 0) {
+        return {
+          imageUrl: results[0].url,
+          imageCredit: { name: "DDG", url: results[0].url },
+        };
+      }
+    }
+  } catch { /* absolute last resort */ }
+
   return {
     imageUrl: "",
-    imageCredit: { name: "No image found — try again", url: "" },
+    imageCredit: { name: "", url: "" },
   };
 }
 

@@ -85,14 +85,12 @@ export default function ImageCanvas({
               <p>No image available. Try a different search.</p>
             </div>
           )}
-          />
 
-          {isImageLoaded && (
+          {/* Overlays: show when image loaded or if no image URL */}
+          {(isImageLoaded || !page.imageUrl) && (
             <>
-              {/* Depth indicator dots */}
               <DepthIndicator depth={depth} maxDepth={maxDepth} />
 
-              {/* Region markers — visible dots at each region's position */}
               {page.regions && page.regions.length > 0 && (
                 <div className="region-markers" aria-label="Clickable regions">
                   {page.regions.map((r, i) => (
@@ -114,13 +112,11 @@ export default function ImageCanvas({
                 </div>
               )}
 
-              {/* Transparent click surface */}
               <ClickOverlay
-                enabled={!isLoading && !atMaxDepth}
+                enabled={!isLoading && !atMaxDepth && isImageLoaded}
                 onClick={handleClick}
               />
 
-              {/* Info panel overlay */}
               <InfoPanel
                 title={page.title}
                 description={page.description}
