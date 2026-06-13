@@ -15,13 +15,17 @@ Fields:
 - description: 1-2 sentences in Chinese, very concise.
 - imageSearchTerm: 1-3 keywords in ENGLISH for photo search. For places/locations, prefer "aerial view" or "map" style terms so the photo shows the layout.
 - subtopics: array of 4-6 strings in Chinese.
-- regions: array of 4-8 objects describing key areas in this image. Each has:
+- regions: array of 4-8 objects. Each has:
   * label: short Chinese name (max 8 chars)
   * description: what's there (Chinese, max 20 chars)
-  * x: horizontal center % (0-100, approximate)
-  * y: vertical center % (0-100, approximate)
+  * x: horizontal center % (0-100)
+  * y: vertical center % (0-100)
 
-IMPORTANT for places: arrange regions to roughly match a map layout. Top area = north, bottom = south, left = west, right = east. Space them across the whole image.
+IMPORTANT region placement rules:
+1. SPREAD regions across the ENTIRE image. Minimum 25% distance between any two region centers.
+2. For geographic places: top = north, bottom = south, left = west, right = east.
+3. Distribute evenly — don't cluster all regions in one corner. Use the full 0-100 range for both x and y.
+4. Place each region where it would roughly appear on a map of the area.
 
 Return ONLY valid JSON:
 {"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": [...], "regions": [{"label": "...", "description": "...", "x": 30, "y": 50}]}`;

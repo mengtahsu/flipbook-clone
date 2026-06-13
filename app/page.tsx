@@ -9,18 +9,40 @@ import AboutSection from "@/components/AboutSection";
 import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
+// DDG endpoint — called from browser (works because it's public)
+const DDG_ENDPOINT = "https://flipbook-clone-five.vercel.app/api/images";
+
+async function fetchDDGImage(imageSearchTerm: string) {
+  try {
+    const res = await fetch(DDG_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: imageSearchTerm }),
+    });
+    if (!res.ok) return null;
+    const results = await res.json();
+    if (!Array.isArray(results) || results.length === 0) return null;
+    return {
+      imageUrl: results[0].url,
+      imageCredit: {
+        name: results[0].source || results[0].title || "DDG",
+        url: results[0].url,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function HomePage() {
-  // State: a stack of pages (index = depth - 1)
   const [pages, setPages] = useState<PageData[]>([]);
   const [currentDepth, setCurrentDepth] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Derived
   const breadcrumbs = pages.map((p) => p.title);
   const currentPage = pages.length > 0 ? pages[pages.length - 1] : null;
 
-  // Search for a new query (top-level or drill-down)
   const performSearch = useCallback(
     async (query: string, depth: number) => {
       setIsLoading(true);
@@ -29,25 +51,38 @@ export default function HomePage() {
       try {
         const oldBreadcrumbs = pages.slice(0, depth - 1).map((p) => p.title);
 
-        const response = await fetch("/api/search", {
+        // Step 1: Get LLM breakdown
+        const res = await fetch("/api/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query,
-            breadcrumbs: oldBreadcrumbs,
-            depth,
-          }),
+          body: JSON.stringify({ query, breadcrumbs: oldBreadcrumbs, depth }),
         });
 
-        if (!response.ok) {
-          const body = await response.json();
-          throw new Error(body.error || `Server error (${response.status})`);
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.error || `Server error (${res.status})`);
         }
 
-        const pageData: PageData = await response.json();
+        const data = await res.json();
+
+        // Step 2: Fetch image from DDG (client-side, bypasses Vercel routing issue)
+        const image = await fetchDDGImage(data.imageSearchTerm);
+
+        const pageData: PageData = {
+          query,
+          imageUrl: image?.imageUrl || "",
+          imageCredit: image?.imageCredit || { name: "No image", url: "" },
+          title: data.title,
+          description: data.description,
+          subtopics: data.subtopics,
+          regions: data.regions,
+        };
+
+        if (!image) {
+          setError("No image found. Try a different search.");
+        }
 
         setPages((prev) => {
-          // Trim to the correct depth (in case user navigated back)
           const trimmed = prev.slice(0, depth - 1);
           return [...trimmed, pageData];
         });
@@ -62,15 +97,11 @@ export default function HomePage() {
     [pages]
   );
 
-  // Initial search from the toolbar
   const handleSearch = useCallback(
-    (query: string) => {
-      performSearch(query, 1);
-    },
+    (query: string) => performSearch(query, 1),
     [performSearch]
   );
 
-  // Click on the image to drill deeper
   const handleImageClick = useCallback(
     async (x: number, y: number, imageWidth: number, imageHeight: number) => {
       if (isLoading) return;
@@ -82,15 +113,11 @@ export default function HomePage() {
       setError(null);
 
       try {
-        // Step 1: Ask the LLM what the click means
-        const clickResponse = await fetch("/api/click", {
+        const clickRes = await fetch("/api/click", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            x,
-            y,
-            imageWidth,
-            imageHeight,
+            x, y, imageWidth, imageHeight,
             currentTitle: currentPage.title,
             currentDescription: currentPage.description,
             breadcrumbs: pages.map((p) => p.title),
@@ -99,14 +126,12 @@ export default function HomePage() {
           }),
         });
 
-        if (!clickResponse.ok) {
-          const body = await clickResponse.json();
-          throw new Error(body.error || `Click interpretation failed (${clickResponse.status})`);
+        if (!clickRes.ok) {
+          const body = await clickRes.json();
+          throw new Error(body.error || "Click interpretation failed");
         }
 
-        const { subQuery } = await clickResponse.json();
-
-        // Step 2: Search with the inferred sub-query
+        const { subQuery } = await clickRes.json();
         await performSearch(subQuery, newDepth);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Something went wrong";
@@ -117,18 +142,13 @@ export default function HomePage() {
     [currentDepth, currentPage, isLoading, pages, performSearch]
   );
 
-  // Click a breadcrumb to go back to that layer
-  const handleBreadcrumbClick = useCallback(
-    (index: number) => {
-      const newDepth = index + 1;
-      setPages((prev) => prev.slice(0, newDepth));
-      setCurrentDepth(newDepth);
-      setError(null);
-    },
-    []
-  );
+  const handleBreadcrumbClick = useCallback((index: number) => {
+    const newDepth = index + 1;
+    setPages((prev) => prev.slice(0, newDepth));
+    setCurrentDepth(newDepth);
+    setError(null);
+  }, []);
 
-  // Clear all history
   const handleClear = useCallback(() => {
     setPages([]);
     setCurrentDepth(0);
