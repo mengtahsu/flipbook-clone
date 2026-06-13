@@ -62,6 +62,7 @@ export async function breakdownQuery(
       { role: "user", content: `Search query: "${query}"${contextNote}` },
     ],
     temperature: 0.7,
+    stream: false,
   });
 
   const text = response.choices[0]?.message?.content || "";
@@ -110,6 +111,7 @@ What did the user click on? Generate a new search query.`,
       },
     ],
     temperature: 0.7,
+    stream: false,
   });
 
   const text = response.choices[0]?.message?.content || "";
