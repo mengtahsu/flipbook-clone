@@ -78,19 +78,18 @@ export default function HomePage() {
         // Step 2: Fetch ALL DDG images — ImageCanvas will try each URL until one loads
         const images = await fetchDDGImages(data.imageSearchTerm);
 
-        const pageData: PageData = {
+        const backups = images.slice(1).map((i: {imageUrl: string}) => i.imageUrl);
+        const pageData = {
           query,
           imageUrl: images.length > 0 ? images[0].imageUrl : "",
           imageCredit: images.length > 0 ? images[0].imageCredit : { name: "", url: "" },
-          // Store backup URLs so ImageCanvas can fall through on load failure
-          backupUrls: images.slice(1).map((i) => i.imageUrl),
-        } as PageData & { backupUrls?: string[] };
+          backupUrls: backups,
           title: data.title,
           description: data.description,
           subtopics: data.subtopics,
-        };
+        } as PageData & { backupUrls: string[] };
 
-        if (!image) {
+        if (images.length === 0) {
           setError("No image found. Try a different search.");
         }
 

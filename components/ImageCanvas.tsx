@@ -83,7 +83,7 @@ export default function ImageCanvas({
               onLoad={() => setIsImageLoaded(true)}
               onError={(e) => {
                 const img = e.currentTarget;
-                const backups: string[] = (page as Record<string, unknown>).backupUrls as string[] || [];
+                const backups: string[] = (page as unknown as Record<string, unknown>).backupUrls as string[] || [];
                 const tried = parseInt(img.dataset.tried || "0", 10);
                 if (tried < backups.length) {
                   img.dataset.tried = String(tried + 1);
