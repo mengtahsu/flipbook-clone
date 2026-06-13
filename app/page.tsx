@@ -48,17 +48,21 @@ async function fetchBestImage(imageSearchTerm: string) {
 
   if (allUrls.length === 0) return null;
 
-  // Race-load: try batches in parallel, pick first to actually load
+  // Race-load batches: first image to SUCCESSFULLY load wins
   for (let i = 0; i < allUrls.length; i += 5) {
     const batch = allUrls.slice(i, i + 5);
+    let settled = false;
     const winner = await Promise.race(
       batch.map(
         (item) =>
           new Promise<typeof item | null>((resolve) => {
             const img = new Image();
-            const tid = setTimeout(() => resolve(null), 5000); // batch timeout
-            img.onload = () => { clearTimeout(tid); resolve(item); };
-            img.onerror = () => { clearTimeout(tid); resolve(null); };
+            const done = (val: typeof item | null) => {
+              if (!settled) { settled = true; resolve(val); }
+            };
+            setTimeout(() => done(null), 6000);
+            img.onload = () => done(item);
+            img.onerror = () => {}; // just wait for timeout or another image
             img.src = item.url;
           })
       )
