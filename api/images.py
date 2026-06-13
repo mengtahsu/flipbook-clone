@@ -7,13 +7,14 @@ import time
 from http.server import BaseHTTPRequestHandler
 from ddgs import DDGS
 
-_WATERMARK_DOMAINS = {
+_PENALIZED = {
     "shutterstock.com", "istockphoto.com", "gettyimages.com",
     "alamy.com", "depositphotos.com", "dreamstime.com", "123rf.com",
+    "unsplash.com", "pexels.com", "pixabay.com",  # stock photo CDNs
 }
 _PREFERRED_DOMAINS = {
-    "unsplash.com", "pexels.com", "pixabay.com", "flickr.com",
-    "wikimedia.org", "wikipedia.org", "publicdomainpictures.net",
+    "flickr.com", "wikimedia.org", "wikipedia.org",
+    "publicdomainpictures.net", "freeimages.com",
 }
 
 
@@ -31,7 +32,7 @@ def _score(img: dict) -> float:
         ratio = w / h
         if 1.2 <= ratio <= 2.0: score += 2
         elif 0.8 <= ratio <= 3.0: score += 1
-    for d in _WATERMARK_DOMAINS:
+    for d in _PENALIZED:
         if d in url or d in source: score -= 5; break
     for d in _PREFERRED_DOMAINS:
         if d in url or d in source: score += 3; break

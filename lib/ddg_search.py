@@ -5,13 +5,14 @@ Usage: python ddg_search.py "search query"
 import sys, json
 from ddgs import DDGS
 
-_LOW_QUALITY = {
+_PENALIZED = {
     "shutterstock.com", "istockphoto.com", "gettyimages.com",
     "alamy.com", "depositphotos.com", "dreamstime.com", "123rf.com",
+    "unsplash.com", "pexels.com", "pixabay.com",
 }
 _PREFERRED = {
-    "unsplash.com", "pexels.com", "pixabay.com", "flickr.com",
-    "wikimedia.org", "wikipedia.org", "publicdomainpictures.net",
+    "flickr.com", "wikimedia.org", "wikipedia.org",
+    "publicdomainpictures.net", "freeimages.com",
 }
 
 
@@ -28,7 +29,7 @@ def _score(img: dict) -> float:
         r = w / h
         if 1.2 <= r <= 2.0: s += 2
         elif 0.8 <= r <= 3.0: s += 1
-    for d in _LOW_QUALITY:
+    for d in _PENALIZED:
         if d in url or d in src: s -= 5; break
     for d in _PREFERRED:
         if d in url or d in src: s += 3; break

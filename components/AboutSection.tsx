@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-13.dd5";
+const VERSION = "2026-06-13.ddg-only";
 
 export default function AboutSection() {
   return (
