@@ -12,7 +12,7 @@ const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. G
 Fields:
 - title: page title in Chinese (max 20 chars).
 - description: 1-2 sentences in Chinese, very concise.
-- imageSearchTerm: 1-3 keywords in ENGLISH for photo search. For places, prefer "aerial view" or "map" style terms.
+- imageSearchTerm: 1-3 keywords in ENGLISH for photo search. CRITICAL for places/cities/countries: use "satellite map" or "aerial map" to get a map view showing the layout. For non-place topics: use visually descriptive terms.
 - subtopics: array of 4-6 strings in Chinese. These appear as clickable circles at the bottom of the page.
 
 Return ONLY valid JSON:
@@ -93,61 +93,10 @@ export async function breakdownQuery(
   };
 }
 
-/** Vision-based click: send image crop to LLM so it sees what user clicked */
-export async function inferClickFromCrop(
-  imageBase64: string,
-  currentTitle: string,
-  currentDescription: string,
-  breadcrumbs: string[]
-): Promise<string> {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
+// Vision via DeepSeek not yet supported (API rejects image_url type).
+// Image crop is captured but we use coordinate-based inference with full context.
 
-  const history = breadcrumbs.length > 0 ? breadcrumbs.join(" > ") : "(start)";
-
-  const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      max_tokens: 200,
-      messages: [
-        {
-          role: "system",
-          content: `You are a visual browser. The user clicked on part of an image. You see a 300x300 crop centered on the click point. The full page title is "${currentTitle}" — ${currentDescription}. Exploration history: ${history}.
-
-Based on WHAT YOU SEE in the image crop, generate a specific Chinese search query to explore the thing the user clicked on. Be precise — name the specific object, place, person, or feature visible in the crop.
-
-Return ONLY: {"subQuery": "the Chinese search query"}`,
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "What did the user click on? Describe what you see and generate a search query." },
-            { type: "image_url", image_url: { url: imageBase64 } },
-          ],
-        },
-      ],
-      temperature: 0.7,
-      stream: false,
-    }),
-  });
-
-  const rawText = await res.text();
-  if (!res.ok) throw new Error(`Vision API ${res.status}: ${rawText.slice(0, 200)}`);
-
-  const data = JSON.parse(rawText) as {
-    choices: Array<{ message: { content: string } }>;
-  };
-  const text = data.choices[0]?.message?.content || "";
-  const parsed = parseJSON<ClickInference>(text, "Vision click");
-  return parsed.subQuery || "Unknown topic";
-}
-
-/** Fallback: coordinate-only click inference (no image crop available) */
+/** Coordinate-based click inference with subtopic hints */
 export async function inferClickIntent(
   x: number, y: number,
   currentTitle: string,
