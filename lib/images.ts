@@ -18,32 +18,53 @@ export interface ImageSearchResponse {
   };
 }
 
-const BASE_URL = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3456";
+/**
+ * Search Pexels (pure Node.js, works everywhere including Vercel).
+ * Free tier: 200 req/hour. Needs PEXELS_API_KEY env var.
+ * Returns up to 10 results.
+ */
+async function searchPexels(query: string): Promise<ImageResult[] | null> {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return null;
+
+  try {
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=10&orientation=landscape`,
+      { headers: { Authorization: key }, signal: AbortSignal.timeout(10000) }
+    );
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      photos: Array<{
+        id: number;
+        width: number;
+        height: number;
+        url: string;
+        src: { large: string; medium: string; tiny: string };
+        alt: string;
+        photographer: string;
+        photographer_url: string;
+      }>;
+    };
+
+    return data.photos.map((p) => ({
+      url: p.src.large,
+      thumb: p.src.tiny,
+      title: p.alt || query,
+      source: p.photographer,
+      width: p.width,
+      height: p.height,
+    }));
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Search for images via DuckDuckGo.
- * On Vercel: calls the Python /api/images endpoint.
- * Locally: calls the Python ddg_search.py script via child_process.
+ * Search DuckDuckGo via Python ddgs (local dev only).
+ * Falls back to this if Pexels is unavailable.
  */
-async function searchDDG(query: string): Promise<ImageResult[]> {
-  // Try the HTTP endpoint first (works on Vercel + locally if Python server is up)
-  try {
-    const res = await fetch(`${BASE_URL}/api/images`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (res.ok) {
-      return (await res.json()) as ImageResult[];
-    }
-  } catch {
-    // Fall through to local Python call
-  }
-
-  // Local fallback: call Python script directly
+function searchDDGLocal(query: string): Promise<ImageResult[]> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), "lib", "ddg_search.py");
     execFile(
@@ -54,17 +75,12 @@ async function searchDDG(query: string): Promise<ImageResult[]> {
         maxBuffer: 1024 * 1024,
         env: { ...process.env, PYTHONIOENCODING: "utf-8" },
       },
-      (error, stdout, stderr) => {
-        if (error) {
-          console.error("[images] Python search failed:", error.message);
-          reject(error);
-          return;
-        }
+      (error, stdout) => {
+        if (error) { reject(error); return; }
         try {
           resolve(JSON.parse(stdout) as ImageResult[]);
-        } catch (parseError) {
-          console.error("[images] Parse failed:", stdout.slice(0, 200));
-          reject(parseError);
+        } catch (e) {
+          reject(e);
         }
       }
     );
@@ -72,13 +88,23 @@ async function searchDDG(query: string): Promise<ImageResult[]> {
 }
 
 /**
- * Search for a photo. Results are pre-scored by the Python script
- * (preferred sources first, watermarked sources last).
- * Picks the top result.
+ * Search for a photo. Tries Pexels first (works on Vercel),
+ * then falls back to local DDG (needs Python). Results are
+ * sorted by Pexels quality or DDG scoring.
  */
 export async function searchPhoto(query: string): Promise<ImageSearchResponse | null> {
   try {
-    const results = await searchDDG(query);
+    // Try Pexels (works on Vercel, high quality, no watermarks)
+    let results = await searchPexels(query);
+
+    // Fall back to local DDG
+    if (!results || results.length === 0) {
+      try {
+        results = await searchDDGLocal(query);
+      } catch {
+        // DDG unavailable (e.g., on Vercel without Pexels key)
+      }
+    }
 
     if (!results || results.length === 0) {
       console.warn(`[images] No results for: "${query}"`);
