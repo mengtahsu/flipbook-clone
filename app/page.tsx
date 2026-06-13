@@ -10,35 +10,7 @@ import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
 async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
-  // Pexels: professional photos, guaranteed loadable, no hotlink issues
-  try {
-    const res = await fetch("/api/pexels", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: imageSearchTerm }),
-    });
-    if (res.ok) {
-      const photos = await res.json();
-      if (Array.isArray(photos) && photos.length > 0) {
-        // Pick first photo not already used
-        for (const p of photos) {
-          if (!usedUrls.has(p.url)) {
-            return {
-              imageUrl: p.url,
-              imageCredit: { name: p.source || "Pexels", url: p.url },
-            };
-          }
-        }
-        // All duplicates — use first anyway
-        return {
-          imageUrl: photos[0].url,
-          imageCredit: { name: photos[0].source || "Pexels", url: photos[0].url },
-        };
-      }
-    }
-  } catch { /* fall through to DDG */ }
-
-  // Fallback: DDG
+  // DDG: broadest coverage — proxy through our server to avoid hotlink blocking
   const DDG = "https://flipbook-clone-five.vercel.app/api/images";
   for (const term of [imageSearchTerm, imageSearchTerm.split(" ")[0]]) {
     try {
@@ -47,14 +19,31 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
       const results = await res.json();
       if (Array.isArray(results) && results.length > 0) {
         for (const r of results) {
-          if (!usedUrls.has(r.url)) {
-            return { imageUrl: r.url, imageCredit: { name: r.source || "DDG", url: r.url } };
+          const proxied = `/api/img?url=${encodeURIComponent(r.url)}`;
+          if (!usedUrls.has(proxied)) {
+            return { imageUrl: proxied, imageCredit: { name: r.source || "DDG", url: r.url } };
           }
         }
-        return { imageUrl: results[0].url, imageCredit: { name: results[0].source || "DDG", url: results[0].url } };
+        return { imageUrl: `/api/img?url=${encodeURIComponent(results[0].url)}`, imageCredit: { name: results[0].source || "DDG", url: results[0].url } };
       }
     } catch { /* try next */ }
   }
+
+  // Fallback: Pexels
+  try {
+    const res = await fetch("/api/pexels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: imageSearchTerm }) });
+    if (res.ok) {
+      const photos = await res.json();
+      if (Array.isArray(photos) && photos.length > 0) {
+        for (const p of photos) {
+          if (!usedUrls.has(p.url)) {
+            return { imageUrl: p.url, imageCredit: { name: p.source || "Pexels", url: p.url } };
+          }
+        }
+        return { imageUrl: photos[0].url, imageCredit: { name: photos[0].source || "Pexels", url: photos[0].url } };
+      }
+    }
+  } catch { /* ok */ }
 
   return null;
 }

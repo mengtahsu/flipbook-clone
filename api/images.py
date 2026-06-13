@@ -40,7 +40,7 @@ def _score(img: dict) -> float:
     return score
 
 
-def search_images(query: str, max_results: int = 20) -> list[dict]:
+def search_images(query: str, max_results: int = 30) -> list[dict]:
     results = []
     seen = set()
     try:
