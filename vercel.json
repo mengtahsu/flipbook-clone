@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/images.py": {
+      "runtime": "python3.12"
+    }
+  }
+}

@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Flipbook Clone — Visual Browser
 
-## Getting Started
+A simplified clone of [flipbook.page](https://flipbook.page) — an experimental visual browser where every "page" is an image, and clicking anywhere dives deeper into subtopics.
 
-First, run the development server:
+## How It Works
+
+1. **Type a query** — Claude breaks it down into a title, description, and image search term
+2. **Get a visual page** — A relevant photo is fetched from Unsplash, paired with AI-generated context
+3. **Click to explore deeper** — Click anywhere on the image; Claude infers what you clicked and generates a new page (up to 4 layers deep)
+4. **Navigate with breadcrumbs** — Click any breadcrumb to go back to that layer
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16 (App Router) + React + TypeScript |
+| LLM | Anthropic Claude API |
+| Images | Unsplash API |
+| Styling | CSS Custom Properties (design tokens, animations) |
+
+## Setup
 
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Set your API keys in .env.local
+ANTHROPIC_API_KEY=sk-ant-...
+UNSPLASH_ACCESS_KEY=...
+
+# 3. Run the dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# 4. Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Limitations (by design)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Max 4 layers deep** — prevents runaway exploration
+- **Real photos, not AI-generated infographics** — the original flipbook.page renders pixels directly
+- **Text search only** — no image upload in this version
+- **Unsplash free tier** — ~50 requests/hour
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+```
+flipbook-clone/
+├── app/
+│   ├── layout.tsx          # Root layout
+│   ├── page.tsx             # Main page (state management)
+│   ├── globals.css          # Design system
+│   └── api/
+│       ├── search/route.ts  # POST: query → image + info
+│       └── click/route.ts   # POST: click → sub-query
+├── components/
+│   ├── BrowserShell.tsx     # Browser window frame
+│   ├── BrowserToolbar.tsx   # Address bar + controls
+│   ├── BreadcrumbBar.tsx    # Breadcrumb navigation
+│   ├── SearchInput.tsx      # Search field
+│   ├── BrowserContent.tsx   # Content wrapper
+│   ├── ImageCanvas.tsx      # Image display + orchestration
+│   ├── ClickOverlay.tsx     # Click capture + ripple effect
+│   ├── InfoPanel.tsx        # Title/description overlay
+│   ├── DepthIndicator.tsx   # Layer depth dots
+│   ├── LoadingSpinner.tsx   # Loading state
+│   └── AboutSection.tsx     # About the project
+└── lib/
+    ├── llm.ts               # Claude API wrapper
+    ├── images.ts            # Unsplash API wrapper
+    ├── types.ts             # TypeScript interfaces
+    └── constants.ts         # Config constants
+```
 
-To learn more about Next.js, take a look at the following resources:
+## License
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
