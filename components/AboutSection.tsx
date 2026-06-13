@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-13.region-dots";
+const VERSION = "2026-06-13.auto-retry";
 
 export default function AboutSection() {
   return (
