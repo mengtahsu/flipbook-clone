@@ -38,7 +38,7 @@ async function deepseekChat(messages: { role: string; content: string }[]): Prom
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
 
-  const body = JSON.stringify({
+  const bodyStr = JSON.stringify({
     model: DEEPSEEK_MODEL,
     max_tokens: MAX_TOKENS,
     messages,
@@ -46,22 +46,26 @@ async function deepseekChat(messages: { role: string; content: string }[]): Prom
     stream: false,
   });
 
+  // Encode as UTF-8 bytes to avoid Vercel fetch string encoding issues
+  const bodyBytes = new TextEncoder().encode(bodyStr);
+
   const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body,
+    body: bodyBytes,
   });
 
+  // Read as text first (avoids Vercel res.json() ByteString bug)
+  const rawText = await res.text();
+
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`DeepSeek API ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(`DeepSeek API ${res.status}: ${rawText.slice(0, 200)}`);
   }
 
-  // DeepSeek follows OpenAI response format
-  const data = (await res.json()) as {
+  const data = JSON.parse(rawText) as {
     choices: Array<{ message: { content: string } }>;
   };
 
