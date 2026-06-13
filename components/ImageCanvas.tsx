@@ -84,6 +84,28 @@ export default function ImageCanvas({
               {/* Depth indicator dots */}
               <DepthIndicator depth={depth} maxDepth={maxDepth} />
 
+              {/* Region markers — visible dots at each region's position */}
+              {page.regions && page.regions.length > 0 && (
+                <div className="region-markers" aria-label="Clickable regions">
+                  {page.regions.map((r, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="region-marker"
+                      style={{ left: `${r.x}%`, top: `${r.y}%` }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSubtopicClick?.(r.label);
+                      }}
+                      title={r.description}
+                    >
+                      <span className="region-marker-dot" />
+                      <span className="region-marker-label">{r.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Transparent click surface */}
               <ClickOverlay
                 enabled={!isLoading && !atMaxDepth}
