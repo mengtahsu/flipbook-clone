@@ -158,14 +158,16 @@ export default function HomePage() {
     setError(null);
   }, []);
 
-  // Direct subtopic click — search immediately, no position interpretation needed
+  // Direct subtopic click — prepend parent title for context
   const handleSubtopicClick = useCallback(
     (topic: string) => {
       if (isLoading) return;
       if (currentDepth >= MAX_DEPTH) return;
-      performSearch(topic, currentDepth + 1);
+      const parentTitle = currentPage?.title || "";
+      const contextualQuery = parentTitle ? `${parentTitle} ${topic}` : topic;
+      performSearch(contextualQuery, currentDepth + 1);
     },
-    [currentDepth, isLoading, performSearch]
+    [currentDepth, isLoading, currentPage, performSearch]
   );
 
   const handleClear = useCallback(() => {

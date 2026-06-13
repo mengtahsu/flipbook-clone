@@ -12,14 +12,13 @@ const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. G
 Fields:
 - title: page title in Chinese (max 20 chars).
 - description: 1-2 sentences in Chinese, very concise.
-- imageSearchTerm: 1-3 keywords in ENGLISH for photo search. CRITICAL for places/cities/countries: use "satellite map" or "aerial map" to get a map view showing the layout. For non-place topics: use visually descriptive terms.
-- subtopics: array of 4-6 strings in Chinese. These appear as clickable circles at the bottom of the page.
+- imageSearchTerm: 1-3 keywords in ENGLISH for photo search. Use visually rich, photogenic terms. Do NOT use "satellite map" or "aerial" — use real scene descriptions.
+- subtopics: array of 4-6 strings in Chinese. CRITICAL: each subtopic MUST include context from the query. For example, if query is "Bali", subtopics should be "Bali beaches" not just "beaches", "Bali temples" not "temples". This ensures clicking a subtopic gives relevant deep-dive results.
 
 Return ONLY valid JSON:
 {"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": ["...", "..."]}`;
 
-const CLICK_FALLBACK_PROMPT = `You are helping a visual browser interpret user clicks without vision (fallback mode).
-Given the click position, page title, and description, infer what the user likely clicked and generate a Chinese search query.
+const CLICK_FALLBACK_PROMPT = `You are helping a visual browser interpret user clicks. The user clicked on an image. Given the click position, page title, description, and exploration history, infer what the user clicked and generate a Chinese search query. Include context from the parent topic so the search is specific and relevant.`;
 
 Return ONLY valid JSON: {"subQuery": "the new Chinese search query"}`;
 
