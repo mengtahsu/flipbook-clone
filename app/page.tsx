@@ -13,33 +13,40 @@ import type { PageData } from "@/lib/types";
 const DDG_ENDPOINT = "https://flipbook-clone-five.vercel.app/api/images";
 
 async function fetchDDGImage(imageSearchTerm: string) {
-  // Try variations of the search term for reliability
   const terms = [
     imageSearchTerm,
     imageSearchTerm.split(" ").slice(0, 2).join(" "),
     imageSearchTerm.split(" ")[0],
-  ].filter((t, i, a) => a.indexOf(t) === i); // unique
+  ].filter((t, i, a) => a.indexOf(t) === i);
 
   for (const term of terms) {
-    try {
-      const res = await fetch(DDG_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: term }),
-      });
-      if (!res.ok) continue;
-      const results = await res.json();
-      if (!Array.isArray(results) || results.length === 0) continue;
-      return {
-        imageUrl: results[0].url,
-        imageCredit: {
-          name: results[0].source || results[0].title || "DDG",
-          url: results[0].url,
-        },
-      };
-    } catch { /* try next term */ }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt));
+        const res = await fetch(DDG_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: term }),
+        });
+        if (!res.ok) continue;
+        const results = await res.json();
+        if (Array.isArray(results) && results.length > 0) {
+          return {
+            imageUrl: results[0].url,
+            imageCredit: {
+              name: results[0].source || results[0].title || "DDG",
+              url: results[0].url,
+            },
+          };
+        }
+      } catch { /* retry */ }
+    }
   }
-  return null;
+  // Never return null — last resort placeholder
+  return {
+    imageUrl: "",
+    imageCredit: { name: "No image found — try again", url: "" },
+  };
 }
 
 export default function HomePage() {

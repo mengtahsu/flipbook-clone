@@ -524,30 +524,30 @@ a:hover {
 }
 
 .region-marker-dot {
-  width: 14px;
-  height: 14px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: oklch(100% 0 0 / 0.85);
-  border: 2px solid oklch(0% 0 0 / 0.4);
-  box-shadow: 0 1px 4px oklch(0% 0 0 / 0.3);
+  background: oklch(100% 0 0 / 0.7);
+  border: 1.5px solid oklch(0% 0 0 / 0.3);
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.25);
   transition: transform var(--duration-fast) var(--ease-out-expo),
               background var(--duration-fast) var(--ease-out-expo);
 }
 
 .region-marker:hover .region-marker-dot {
-  transform: scale(1.4);
+  transform: scale(1.6);
   background: var(--color-accent);
   border-color: white;
 }
 
 .region-marker-label {
-  font-size: 0.625rem;
+  font-size: 0.5rem;
   color: white;
-  background: oklch(0% 0 0 / 0.6);
-  padding: 1px 6px;
+  background: oklch(0% 0 0 / 0.45);
+  padding: 1px 4px;
   border-radius: 100px;
   white-space: nowrap;
-  text-shadow: 0 1px 2px oklch(0% 0 0 / 0.5);
+  text-shadow: 0 1px 2px oklch(0% 0 0 / 0.4);
   transition: background var(--duration-fast) var(--ease-out-expo);
 }
 

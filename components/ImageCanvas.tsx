@@ -70,13 +70,21 @@ export default function ImageCanvas({
       {/* Image + overlays */}
       {page && (
         <div className="result-frame">
-          <img
-            ref={imageRef}
-            className={`result-image${!isImageLoaded ? " result-image--loading" : ""}`}
-            src={page.imageUrl}
-            alt={page.title}
-            draggable={false}
-            onLoad={() => setIsImageLoaded(true)}
+          {page.imageUrl ? (
+            <img
+              ref={imageRef}
+              className={`result-image${!isImageLoaded ? " result-image--loading" : ""}`}
+              src={page.imageUrl}
+              alt={page.title}
+              draggable={false}
+              onLoad={() => setIsImageLoaded(true)}
+              onError={() => setIsImageLoaded(false)}
+            />
+          ) : (
+            <div className="empty-state" style={{ color: "white", padding: "2rem" }}>
+              <p>No image available. Try a different search.</p>
+            </div>
+          )}
           />
 
           {isImageLoaded && (
