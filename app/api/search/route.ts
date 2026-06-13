@@ -24,13 +24,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `LLM: ${message}` }, { status: 500 });
   }
 
-  // Return LLM breakdown WITHOUT image — frontend fetches image from DDG endpoint
   return NextResponse.json({
     query: body.query,
     imageSearchTerm: breakdown.imageSearchTerm,
     title: breakdown.title,
     description: breakdown.description,
     subtopics: breakdown.subtopics,
-    regions: breakdown.regions,
   });
 }

@@ -109,7 +109,6 @@ export default function HomePage() {
           title: data.title,
           description: data.description,
           subtopics: data.subtopics,
-          regions: data.regions,
         };
 
         if (!image) {
@@ -137,7 +136,7 @@ export default function HomePage() {
   );
 
   const handleImageClick = useCallback(
-    async (x: number, y: number, imageWidth: number, imageHeight: number) => {
+    async (x: number, y: number, imageWidth: number, imageHeight: number, crop: string | null) => {
       if (isLoading) return;
       if (currentDepth >= MAX_DEPTH) return;
       if (!currentPage) return;
@@ -156,7 +155,7 @@ export default function HomePage() {
             currentDescription: currentPage.description,
             breadcrumbs: pages.map((p) => p.title),
             depth: currentDepth,
-            regions: currentPage.regions,
+            imageCrop: crop,
           }),
         });
 

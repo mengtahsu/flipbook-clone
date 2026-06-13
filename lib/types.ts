@@ -1,11 +1,3 @@
-/** A labeled region on the image (for click accuracy) */
-export interface ImageRegion {
-  label: string;       // e.g. "Ubud town center"
-  description: string; // e.g. "Cultural heart of Bali with art markets"
-  x: number;           // center x % (0-100)
-  y: number;           // center y % (0-100)
-}
-
 /** A single page in the exploration history */
 export interface PageData {
   query: string;
@@ -17,8 +9,6 @@ export interface PageData {
   title: string;
   description: string;
   subtopics: string[];
-  /** Spatial regions in this image (for accurate click mapping) */
-  regions?: ImageRegion[];
 }
 
 export interface SearchRequest {
@@ -38,8 +28,8 @@ export interface ClickRequest {
   currentDescription: string;
   breadcrumbs: string[];
   depth: number;
-  /** Known regions in the current image */
-  regions?: ImageRegion[];
+  /** Base64 JPEG crop around the click point (for vision LLM) */
+  imageCrop?: string | null;
 }
 
 export interface ClickResponse {
