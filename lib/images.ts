@@ -41,7 +41,6 @@ async function searchDDGEndpoint(query: string): Promise<ImageResult[] | null> {
   }
   return null;
 }
-}
 
 /**
  * DuckDuckGo via local Python child_process (dev fallback).
