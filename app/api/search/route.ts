@@ -1,39 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DEEPSEEK_MODEL, MAX_TOKENS } from "@/lib/constants";
+import { breakdownQuery } from "@/lib/llm";
+import { searchPhoto } from "@/lib/images";
+import { MAX_DEPTH } from "@/lib/constants";
+import type { SearchRequest, SearchResponse } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const query = body.query || "test";
+  const body = (await request.json()) as SearchRequest;
 
-  // Strip BOM (PowerShell pipe can add ﻿) and whitespace
-  const apiKey = (process.env.DEEPSEEK_API_KEY || "").replace(/^./, (ch: string) => ch.charCodeAt(0) === 0xFEFF ? "" : ch).trim();
-  if (!apiKey) return NextResponse.json({ error: "No API key" }, { status: 500 });
-
-  try {
-    const reqBody = JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      max_tokens: 100,
-      messages: [
-        { role: "system", content: "Return ONLY: {\"title\":\"Hello\"}" },
-        { role: "user", content: query },
-      ],
-      temperature: 0.7,
-      stream: false,
-    });
-
-    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: reqBody,
-    });
-
-    const text = await res.text();
-    return NextResponse.json({ ok: res.ok, status: res.status, bodyLen: text.length, preview: text.slice(0, 100) });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown";
-    return NextResponse.json({ error: message }, { status: 500 });
+  if (!body.query || typeof body.query !== "string") {
+    return NextResponse.json({ error: "Missing or invalid 'query' field" }, { status: 400 });
   }
+
+  if (body.depth > MAX_DEPTH) {
+    return NextResponse.json({ error: `Maximum depth of ${MAX_DEPTH} reached` }, { status: 400 });
+  }
+
+  const breadcrumbs = Array.isArray(body.breadcrumbs) ? body.breadcrumbs : [];
+
+  // Step 1: LLM breakdown
+  let breakdown;
+  try {
+    breakdown = await breakdownQuery(body.query, breadcrumbs);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: `LLM: ${message}` }, { status: 500 });
+  }
+
+  // Step 2: Image search
+  let photo;
+  try {
+    photo = await searchPhoto(breakdown.imageSearchTerm);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: `Image: ${message}` }, { status: 500 });
+  }
+
+  if (!photo) {
+    return NextResponse.json({ error: "No image found for this query" }, { status: 404 });
+  }
+
+  const response: SearchResponse = {
+    query: body.query,
+    imageUrl: photo.imageUrl,
+    imageCredit: photo.imageCredit,
+    title: breakdown.title,
+    description: breakdown.description,
+    subtopics: breakdown.subtopics,
+  };
+
+  return NextResponse.json(response);
 }

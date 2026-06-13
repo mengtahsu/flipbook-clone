@@ -2,6 +2,12 @@ import { DEEPSEEK_MODEL, MAX_TOKENS } from "./constants";
 
 const DEEPSEEK_BASE = "https://api.deepseek.com/v1";
 
+function getApiKey(): string {
+  // Strip BOM (PowerShell pipes can add ﻿)
+  const raw = process.env.DEEPSEEK_API_KEY || "";
+  return raw.replace(/^./, (ch: string) => ch.charCodeAt(0) === 0xFEFF ? "" : ch).trim();
+}
+
 const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, you must return a JSON object with these exact fields:
 
 - title: A compelling page title (max 60 chars).
@@ -35,7 +41,7 @@ export interface ClickInference {
 }
 
 async function deepseekChat(messages: { role: string; content: string }[]): Promise<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
 
   const bodyStr = JSON.stringify({
@@ -46,19 +52,15 @@ async function deepseekChat(messages: { role: string; content: string }[]): Prom
     stream: false,
   });
 
-  // Use Buffer (Node.js) instead of TextEncoder (has ByteString bug on Vercel)
-  const bodyBytes = Buffer.from(bodyStr, "utf-8");
-
   const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: bodyBytes,
+    body: bodyStr,
   });
 
-  // Read as text first (avoids Vercel res.json() ByteString bug)
   const rawText = await res.text();
 
   if (!res.ok) {
