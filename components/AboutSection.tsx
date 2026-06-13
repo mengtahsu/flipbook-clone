@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-14.vc";
+const VERSION = "2026-06-14.cover";
 
 export default function AboutSection() {
   return (
