@@ -9,71 +9,39 @@ import AboutSection from "@/components/AboutSection";
 import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
-// DDG endpoint — called from browser (works because it's public)
-const DDG_ENDPOINT = "https://flipbook-clone-five.vercel.app/api/images";
-
-// Fetch DDG images and race-load them in parallel to find the best valid URL
 async function fetchBestImage(imageSearchTerm: string) {
-  const terms = [
-    imageSearchTerm,
-    imageSearchTerm.split(" ").slice(0, 2).join(" "),
-    imageSearchTerm.split(" ")[0],
-  ].filter((t, i, a) => t && a.indexOf(t) === i);
-
-  let allUrls: Array<{url: string; credit: {name: string; url: string}}> = [];
-
-  // Collect URLs from DDG
-  for (const term of terms) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, 1000));
-        const res = await fetch(DDG_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: term }),
-        });
-        if (!res.ok) continue;
-        const results: Array<{url: string; title: string; source: string}> = await res.json();
-        if (Array.isArray(results) && results.length > 0) {
-          allUrls = results.map((r) => ({
-            url: r.url,
-            credit: { name: r.source || r.title || "DDG", url: r.url },
-          }));
-          break; // Got results, stop trying terms
-        }
-      } catch { /* retry */ }
+  // Pexels: professional photos, guaranteed loadable, no hotlink issues
+  try {
+    const res = await fetch("/api/pexels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: imageSearchTerm }),
+    });
+    if (res.ok) {
+      const photos = await res.json();
+      if (Array.isArray(photos) && photos.length > 0) {
+        return {
+          imageUrl: photos[0].url,
+          imageCredit: { name: photos[0].source || "Pexels", url: photos[0].url },
+        };
+      }
     }
-    if (allUrls.length > 0) break;
+  } catch { /* fall through to DDG */ }
+
+  // Fallback: DDG
+  const DDG = "https://flipbook-clone-five.vercel.app/api/images";
+  for (const term of [imageSearchTerm, imageSearchTerm.split(" ")[0]]) {
+    try {
+      const res = await fetch(DDG, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: term }) });
+      if (!res.ok) continue;
+      const results = await res.json();
+      if (Array.isArray(results) && results.length > 0) {
+        return { imageUrl: results[0].url, imageCredit: { name: results[0].source || "DDG", url: results[0].url } };
+      }
+    } catch { /* try next */ }
   }
 
-  if (allUrls.length === 0) return null;
-
-  // Race-load batches: first image to SUCCESSFULLY load wins
-  for (let i = 0; i < allUrls.length; i += 5) {
-    const batch = allUrls.slice(i, i + 5);
-    let settled = false;
-    const winner = await Promise.race(
-      batch.map(
-        (item) =>
-          new Promise<typeof item | null>((resolve) => {
-            const img = new Image();
-            const done = (val: typeof item | null) => {
-              if (!settled) { settled = true; resolve(val); }
-            };
-            setTimeout(() => done(null), 6000);
-            img.onload = () => done(item);
-            img.onerror = () => {}; // just wait for timeout or another image
-            img.src = item.url;
-          })
-      )
-    );
-    if (winner) {
-      return { imageUrl: winner.url, imageCredit: winner.credit };
-    }
-  }
-
-  // All batches failed — use first URL with onerror fallback in the DOM
-  return { imageUrl: allUrls[0].url, imageCredit: allUrls[0].credit };
+  return null;
 }
 
 export default function HomePage() {
