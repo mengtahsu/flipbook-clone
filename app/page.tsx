@@ -12,66 +12,36 @@ import type { PageData } from "@/lib/types";
 // DDG endpoint — called from browser (works because it's public)
 const DDG_ENDPOINT = "https://flipbook-clone-five.vercel.app/api/images";
 
-async function fetchDDGImage(imageSearchTerm: string) {
+// Fetch ALL DDG image URLs for a term. Returns all results so we can try
+// multiple images if some URLs are dead (hotlink blocking is common).
+async function fetchDDGImages(imageSearchTerm: string) {
   const terms = [
     imageSearchTerm,
     imageSearchTerm.split(" ").slice(0, 2).join(" "),
     imageSearchTerm.split(" ")[0],
-    "travel " + imageSearchTerm.split(" ").pop(),
-    "landscape nature",
   ].filter((t, i, a) => t && a.indexOf(t) === i);
 
   for (const term of terms) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt));
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 1000));
         const res = await fetch(DDG_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query: term }),
         });
         if (!res.ok) continue;
-        const results = await res.json();
+        const results: Array<{url: string; title: string; source: string}> = await res.json();
         if (Array.isArray(results) && results.length > 0) {
-          return {
-            imageUrl: results[0].url,
-            imageCredit: {
-              name: results[0].source || results[0].title || "DDG",
-              url: results[0].url,
-            },
-          };
+          return results.map((r) => ({
+            imageUrl: r.url,
+            imageCredit: { name: r.source || r.title || "DDG", url: r.url },
+          }));
         }
       } catch { /* retry */ }
     }
   }
-  // Keep retrying with longer delays — never give up
-  const fallbackTerms = ["landscape nature travel", "travel destination", "world map"];
-  for (const term of fallbackTerms) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, 2000 * attempt));
-        const res = await fetch(DDG_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: term }),
-        });
-        if (!res.ok) continue;
-        const results = await res.json();
-        if (Array.isArray(results) && results.length > 0) {
-          return {
-            imageUrl: results[0].url,
-            imageCredit: { name: "DDG", url: results[0].url },
-          };
-        }
-      } catch { /* keep trying */ }
-    }
-  }
-
-  // Absolute last resort — will retry again on next render
-  return {
-    imageUrl: "",
-    imageCredit: { name: "", url: "" },
-  };
+  return [];
 }
 
 export default function HomePage() {
@@ -105,13 +75,16 @@ export default function HomePage() {
 
         const data = await res.json();
 
-        // Step 2: Fetch image from DDG (client-side, bypasses Vercel routing issue)
-        const image = await fetchDDGImage(data.imageSearchTerm);
+        // Step 2: Fetch ALL DDG images — ImageCanvas will try each URL until one loads
+        const images = await fetchDDGImages(data.imageSearchTerm);
 
         const pageData: PageData = {
           query,
-          imageUrl: image?.imageUrl || "",
-          imageCredit: image?.imageCredit || { name: "No image", url: "" },
+          imageUrl: images.length > 0 ? images[0].imageUrl : "",
+          imageCredit: images.length > 0 ? images[0].imageCredit : { name: "", url: "" },
+          // Store backup URLs so ImageCanvas can fall through on load failure
+          backupUrls: images.slice(1).map((i) => i.imageUrl),
+        } as PageData & { backupUrls?: string[] };
           title: data.title,
           description: data.description,
           subtopics: data.subtopics,

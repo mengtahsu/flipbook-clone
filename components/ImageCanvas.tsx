@@ -82,13 +82,12 @@ export default function ImageCanvas({
               draggable={false}
               onLoad={() => setIsImageLoaded(true)}
               onError={(e) => {
-                // Retry loading the image once
                 const img = e.currentTarget;
-                if (!img.dataset.retried) {
-                  img.dataset.retried = "1";
-                  setTimeout(() => { img.src = img.src + "?retry=1"; }, 1000);
-                } else {
-                  setIsImageLoaded(false);
+                const backups: string[] = (page as Record<string, unknown>).backupUrls as string[] || [];
+                const tried = parseInt(img.dataset.tried || "0", 10);
+                if (tried < backups.length) {
+                  img.dataset.tried = String(tried + 1);
+                  img.src = backups[tried];
                 }
               }}
             />
