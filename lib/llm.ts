@@ -46,8 +46,8 @@ async function deepseekChat(messages: { role: string; content: string }[]): Prom
     stream: false,
   });
 
-  // Encode as UTF-8 bytes to avoid Vercel fetch string encoding issues
-  const bodyBytes = new TextEncoder().encode(bodyStr);
+  // Use Buffer (Node.js) instead of TextEncoder (has ByteString bug on Vercel)
+  const bodyBytes = Buffer.from(bodyStr, "utf-8");
 
   const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
     method: "POST",
