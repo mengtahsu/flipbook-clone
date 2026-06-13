@@ -15,9 +15,9 @@ export interface ImageSearchResponse {
   imageCredit: { name: string; url: string };
 }
 
-const DDG_ENDPOINT = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}/api/images`
-  : "http://localhost:3456/api/images";
+// Use the production alias for DDG endpoint (Vercel Python function)
+const DDG_ENDPOINT = "https://flipbook-clone-five.vercel.app/api/images";
+// For local dev, fall back to Pexels or local Python
 
 /**
  * DuckDuckGo image search via Python endpoint (Vercel).
