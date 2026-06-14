@@ -28,7 +28,7 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
             body: JSON.stringify({
               x: 50, y: 50, imageWidth: 1, imageHeight: 1,
               currentTitle: "RANK_IMAGES",
-              currentDescription: `Pick the most relevant image for query: "${imageSearchTerm}". Images:\n${candidates.map((r: {title: string; source: string}, i: number) => `${i}: ${r.title} [${r.source}]`).join("\n")}`,
+              currentDescription: `Pick the most relevant SAFE image for query: "${imageSearchTerm}". REJECT any NSFW/adult/inappropriate content. Images:\n${candidates.map((r: {title: string; source: string}, i: number) => `${i}: ${r.title} [${r.source}]`).join("\n")}`,
               breadcrumbs: [], depth: 0,
             }),
           });

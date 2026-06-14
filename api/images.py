@@ -7,7 +7,7 @@ import time
 from http.server import BaseHTTPRequestHandler
 from ddgs import DDGS
 
-# Domains to completely reject (ads, spam, irrelevant)
+# Domains to completely reject (ads, spam, irrelevant, NSFW)
 _REJECT = {
     "etsy.com", "ebay.com", "amazon.com", "aliexpress.com",
     "pinterest.", "pinimg.com", "shutterstock.com", "istockphoto.com",
@@ -16,6 +16,15 @@ _REJECT = {
     "vecteezy.com", "freepik.com", "stock.adobe.com",
     "wallpaperflare.com", "wallpapercave.com", "wallpaperaccess.com",
     "hdwallpapers.in", "wallpapersden.com", "eskipaper.com",
+    # NSFW/adult domains
+    "porn", "xxx", "adult", "nsfw", "nude", "naked", "sex",
+    "hentai", "erotic", "onlyfans", "fansly", "redtube",
+    "youporn", "pornhub", "xvideos", "xnxx",
+}
+# Content keywords to reject in titles
+_REJECT_TITLE = {
+    "porn", "xxx", "adult", "nsfw", "nude", "naked", "sex",
+    "hentai", "erotic", "onlyfans", "18+", "explicit",
 }
 _PREFERRED = {
     "flickr.com", "wikimedia.org", "wikipedia.org", "commons.wikimedia.org",
@@ -61,8 +70,12 @@ def search_images(query: str, max_results: int = 40) -> list[dict]:
                 if not url or url in seen:
                     continue
                 seen.add(url)
-                # Skip ad/spam/stock domains entirely
+                # Skip ad/spam/stock/NSFW domains
                 if _is_rejected(url, r.get("source", "")):
+                    continue
+                # Skip NSFW titles
+                title_lower = (r.get("title", "") or "").lower()
+                if any(w in title_lower for w in _REJECT_TITLE):
                     continue
                 img = {
                     "url": url,
