@@ -11,7 +11,7 @@ import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
 async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
-  // DDG first — preload top candidates, pick first to actually load
+  // DDG first — let LLM rank candidates by title relevance, then preload best
   const DDG_API = "https://flipbook-clone-five.vercel.app/api/images";
   for (const term of [imageSearchTerm, imageSearchTerm.split(" ")[0]]) {
     try {
@@ -19,12 +19,37 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
       if (!res.ok) continue;
       const results = await res.json();
       if (Array.isArray(results) && results.length > 0) {
-        // Preload top 5 candidates in parallel, pick first valid one
-        const candidates = results.slice(0, 5);
+        // Ask LLM to pick the best image by title/source relevance
+        let candidates = results.slice(0, 10);
+        try {
+          const pickRes = await fetch("/api/click", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              x: 50, y: 50, imageWidth: 1, imageHeight: 1,
+              currentTitle: "RANK_IMAGES",
+              currentDescription: `Pick the most relevant image for query: "${imageSearchTerm}". Images:\n${candidates.map((r: {title: string; source: string}, i: number) => `${i}: ${r.title} [${r.source}]`).join("\n")}`,
+              breadcrumbs: [], depth: 0,
+            }),
+          });
+          if (pickRes.ok) {
+            const { subQuery } = await pickRes.json();
+            const match = subQuery.match(/\d+/);
+            if (match) {
+              const idx = parseInt(match[0], 10);
+              if (idx >= 0 && idx < candidates.length) {
+                candidates = [candidates[idx], ...candidates.filter((_: unknown, i: number) => i !== idx)];
+              }
+            }
+          }
+        } catch { /* keep DDG order */ }
+
+        // Preload top 5 of LLM-ranked candidates, pick first valid one
+        const top5 = candidates.slice(0, 5);
         let settled = false;
         type ImgResult = { imageUrl: string; imageCredit: { name: string; url: string } } | null;
         const winner: ImgResult = await Promise.race(
-          candidates.map((r: {url: string; source: string; title: string}) =>
+          top5.map((r: {url: string; source: string; title: string}) =>
             new Promise<ImgResult>((resolve) => {
               const proxyUrl = `/api/img?url=${encodeURIComponent(r.url)}`;
               if (usedUrls.has(proxyUrl)) { resolve(null); return; }
