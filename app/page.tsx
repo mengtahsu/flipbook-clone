@@ -22,19 +22,19 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
         // Preload top 5 candidates in parallel, pick first valid one
         const candidates = results.slice(0, 5);
         let settled = false;
-        const winner = await Promise.race(
+        type ImgResult = { imageUrl: string; imageCredit: { name: string; url: string } } | null;
+        const winner: ImgResult = await Promise.race(
           candidates.map((r: {url: string; source: string; title: string}) =>
-            new Promise<{imageUrl: string; credit: {name: string; url: string}} | null>((resolve) => {
+            new Promise<ImgResult>((resolve) => {
               const proxyUrl = `/api/img?url=${encodeURIComponent(r.url)}`;
               if (usedUrls.has(proxyUrl)) { resolve(null); return; }
               const img = new Image();
-              const done = (val: typeof winner) => { if (!settled) { settled = true; resolve(val); } };
-              setTimeout(() => done(null), 7000);
-              img.onload = () => done({ imageUrl: proxyUrl, credit: { name: r.source || "DDG", url: r.url } });
+              const done = (val: ImgResult) => { if (!settled) { settled = true; resolve(val); } };
+              setTimeout(() => done(null), 10000);
+              img.onload = () => done({ imageUrl: proxyUrl, imageCredit: { name: r.source || "DDG", url: r.url } });
               img.onerror = () => {
-                // Proxy failed — try direct URL as last resort
                 const img2 = new Image();
-                img2.onload = () => done({ imageUrl: r.url, credit: { name: r.source || "DDG", url: r.url } });
+                img2.onload = () => done({ imageUrl: r.url, imageCredit: { name: r.source || "DDG", url: r.url } });
                 img2.onerror = () => done(null);
                 img2.src = r.url;
               };
@@ -43,7 +43,6 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
           )
         );
         if (winner) return winner;
-        // All candidates failed — fall through to Pexels
       }
     } catch { /* try next */ }
   }
