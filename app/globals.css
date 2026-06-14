@@ -497,16 +497,17 @@ a:hover {
 .info-panel-subtopic--clickable {
   pointer-events: auto;
   cursor: pointer;
-  background: none;
-  color: inherit;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: white;
   font-family: inherit;
-  transition: opacity var(--duration-fast) var(--ease-out-expo),
-              background var(--duration-fast) var(--ease-out-expo);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .info-panel-subtopic--clickable:hover {
-  opacity: 1;
-  background: oklch(100% 0 0 / 0.15);
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 /* --- Info Card (below image) --- */
@@ -549,16 +550,20 @@ a:hover {
 .info-card .info-panel-subtopic {
   font-size: 0.75rem;
   padding: 4px 12px;
-  border: 1px solid var(--color-chrome-border);
-  color: var(--color-text-secondary);
+  border: 1px solid #ddd;
+  color: #444;
   opacity: 1;
-  background: var(--color-surface);
+  background: #f5f5f5;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 100px;
+  -webkit-appearance: none;
 }
 
 .info-card .info-panel-subtopic:hover {
-  background: var(--color-accent);
+  background: #2563eb;
   color: white;
-  border-color: var(--color-accent);
+  border-color: #2563eb;
 }
 
 .info-card .info-panel-credit {
