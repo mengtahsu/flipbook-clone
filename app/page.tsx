@@ -11,20 +11,22 @@ import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
 async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
-  // DDG first — broader coverage, more relevant results
-  const DDG = "https://flipbook-clone-five.vercel.app/api/images";
+  // DDG first — broader coverage. Proxy through /api/img for Safari CORS compat
+  const DDG_API = "https://flipbook-clone-five.vercel.app/api/images";
   for (const term of [imageSearchTerm, imageSearchTerm.split(" ")[0]]) {
     try {
-      const res = await fetch(DDG, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: term }) });
+      const res = await fetch(DDG_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: term }) });
       if (!res.ok) continue;
       const results = await res.json();
       if (Array.isArray(results) && results.length > 0) {
         for (const r of results) {
-          if (!usedUrls.has(r.url)) {
-            return { imageUrl: r.url, imageCredit: { name: r.source || "DDG", url: r.url } };
+          const proxyUrl = `/api/img?url=${encodeURIComponent(r.url)}`;
+          if (!usedUrls.has(proxyUrl)) {
+            return { imageUrl: proxyUrl, imageCredit: { name: r.source || "DDG", url: r.url } };
           }
         }
-        return { imageUrl: results[0].url, imageCredit: { name: results[0].source || "DDG", url: results[0].url } };
+        const proxyUrl = `/api/img?url=${encodeURIComponent(results[0].url)}`;
+        return { imageUrl: proxyUrl, imageCredit: { name: results[0].source || "DDG", url: results[0].url } };
       }
     } catch { /* try next */ }
   }
