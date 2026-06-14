@@ -7,20 +7,20 @@ function getApiKey(): string {
   return raw.replace(/^./, (ch: string) => ch.charCodeAt(0) === 0xFEFF ? "" : ch).trim();
 }
 
-const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, return a JSON object. ALL text MUST be in Chinese except imageSearchTerm (English for photo search).
+const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, return a JSON object. ALL text MUST be in Taiwan Traditional Chinese (繁體中文) except imageSearchTerm (English for photo search).
 
 Fields:
-- title: page title in Chinese (max 20 chars).
-- description: detailed overview in Chinese, 3-5 sentences. Include key facts, interesting details, and context. Be educational and engaging — this is the main content below the image.
+- title: page title in Taiwan Traditional Chinese (繁體中文) (max 20 chars).
+- description: detailed overview in Taiwan Traditional Chinese (繁體中文), 3-5 sentences. Include key facts, interesting details, and context. Be educational and engaging — this is the main content below the image.
 - imageSearchTerm: 1-3 keywords in ENGLISH for photo search. Use visually rich, photogenic terms. Do NOT use "satellite map" or "aerial" — use real scene descriptions.
-- subtopics: array of 4-6 SHORT strings in Chinese (max 6 chars each). Keep labels concise — the parent topic will be added automatically when searching.
+- subtopics: array of 4-6 SHORT strings in Taiwan Traditional Chinese (繁體中文) (max 6 chars each). Keep labels concise — the parent topic will be added automatically when searching.
 
 Return ONLY valid JSON:
 {"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": ["...", "..."]}`;
 
-const CLICK_FALLBACK_PROMPT = `You are helping a visual browser interpret user clicks. The user clicked on an image. Given the click position, page title, description, and exploration history, infer what the user clicked and generate a Chinese search query. Include context from the parent topic so the search is specific and relevant.
+const CLICK_FALLBACK_PROMPT = `You are helping a visual browser interpret user clicks. The user clicked on an image. Given the click position, page title, description, and exploration history, infer what the user clicked and generate a Taiwan Traditional Chinese (繁體中文) search query. Include context from the parent topic so the search is specific and relevant.
 
-Return ONLY valid JSON: {"subQuery": "the new Chinese search query"}`;
+Return ONLY valid JSON: {"subQuery": "the Taiwan Traditional Chinese search query"}`;
 
 export interface SearchBreakdown {
   title: string;
@@ -109,7 +109,7 @@ export async function inferClickIntent(
       content: `Page: "${currentTitle}" — ${currentDescription}
 History: ${breadcrumbs.length > 0 ? breadcrumbs.join(" > ") : "(start)"}
 Click at (${x}%, ${y}%)
-What did the user click? Generate a Chinese search query.`,
+What did the user click? Generate a Taiwan Traditional Chinese search query.`,
     },
   ]);
   const parsed = parseJSON<ClickInference>(text, "Click fallback");

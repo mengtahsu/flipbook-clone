@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-14.zh-TW";
+const VERSION = "2026-06-14.tw";
 
 export default function AboutSection() {
   return (
