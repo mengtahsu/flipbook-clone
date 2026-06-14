@@ -43,6 +43,8 @@ When user says "sanity test XX" (XX = minutes):
 8. Update version tag after any fixes deployed
 
 Key check: **images must actually render** (img.complete && img.naturalWidth > 0), not just URLs returned
+**LLM relevance check**: for each search result, send image titles+descriptions to LLM and ask "Is this image relevant to query X? Return YES/NO." Fail if LLM says NO.
+**NSFW check**: all titles, descriptions, and image metadata must pass NSFW keyword filter
 
 Test queries (rotate): "東京", "巴黎", "巴里島", "火箭引擎", "壽司", "長城", "北極光", "潛水", "火山", "太空站"
 
