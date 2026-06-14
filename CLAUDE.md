@@ -48,6 +48,47 @@ Key check: **images must actually render** (img.complete && img.naturalWidth > 0
 
 Test queries (rotate): "東京", "巴黎", "巴里島", "火箭引擎", "壽司", "長城", "北極光", "潛水", "火山", "太空站"
 
+## Embedding Flipbook in Other Websites
+Any website can embed flipbook-clone as an iframe card. Use the `?q=` and `?embed=1` URL params.
+
+### Basic Embed
+```html
+<!-- Auto-search "Bali" on load, clean card without about section -->
+<iframe src="https://flipbook-clone-five.vercel.app?q=Bali&embed=1"
+        width="100%" height="600" style="border:none; border-radius:12px;">
+</iframe>
+```
+
+### URL Parameters
+| Param | Value | Effect |
+|-------|-------|--------|
+| `q` | Any query (e.g. `?q=東京`) | Auto-searches and shows layer 1 on load |
+| `embed` | `1` | Hides AboutSection, caption, removes padding |
+
+### Travel Site Integration
+```html
+<!-- In your travel site's destination page -->
+<div class="flipbook-card">
+  <iframe src="https://flipbook-clone-five.vercel.app?q=<?= $destination ?>&embed=1"
+          width="100%" height="500" frameborder="0"
+          style="border-radius:10px; box-shadow:0 2px 16px rgba(0,0,0,0.1);">
+  </iframe>
+</div>
+```
+
+### How It Works
+1. iframe loads `flipbook-clone-five.vercel.app?q=Bali&embed=1`
+2. Page reads `?q=Bali` → auto-fetches search API → displays image + info card
+3. `?embed=1` removes page chrome (no about section, no caption, no padding)
+4. User can click subtopics / image to drill deeper — all inside the iframe
+5. The card is fully interactive: search, click, navigate layers
+
+### Full-Page Redirect (no iframe)
+To link from travel site to a full flipbook page:
+```html
+<a href="https://flipbook-clone-five.vercel.app?q=Paris">Explore Paris</a>
+```
+
 ## Deploy
 ```bash
 cd C:\workspace\20260613_flipbook\flipbook-clone
