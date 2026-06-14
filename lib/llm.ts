@@ -12,7 +12,7 @@ const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. G
 Fields:
 - title: page title in Taiwan Traditional Chinese (繁體中文) (max 20 chars).
 - description: detailed overview in Taiwan Traditional Chinese (繁體中文), 3-5 sentences. Include key facts, interesting details, and context. Be educational and engaging — this is the main content below the image.
-- imageSearchTerm: 1-3 keywords in ENGLISH for photo search. Use visually rich, photogenic terms. Do NOT use "satellite map" or "aerial" — use real scene descriptions.
+- imageSearchTerm: 1-2 SHORT keywords in ENGLISH (max 3 words). Keep BROAD: "Tokyo" not "Tokyo cityscape night Shibuya". Broad terms get more image results.
 - subtopics: array of 4-6 SHORT strings in Taiwan Traditional Chinese (繁體中文) (max 6 chars each). Keep labels concise — the parent topic will be added automatically when searching.
 
 Return ONLY valid JSON:
