@@ -13,11 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Flipbook Clone — Visual Browser",
-  description: "An infinite visual browser. Type a query, get an image, click to explore deeper.",
+  title: "Flipbook Clone — 視覺瀏覽器",
+  description: "無限視覺瀏覽器。輸入關鍵詞，獲得圖片，點擊深入探索。",
   openGraph: {
     title: "Flipbook Clone",
-    description: "A visual exploration browser — click images to discover more.",
+    description: "視覺探索瀏覽器 — 點擊圖片發現更多。",
     type: "website",
   },
 };

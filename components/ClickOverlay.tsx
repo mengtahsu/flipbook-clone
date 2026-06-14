@@ -44,7 +44,7 @@ export default function ClickOverlay({ enabled, onClick }: ClickOverlayProps) {
       className={`click-overlay${!enabled ? " click-overlay--disabled" : ""}`}
       onClick={handleClick}
       role={enabled ? "button" : "presentation"}
-      aria-label={enabled ? "Click to explore this part of the image" : undefined}
+      aria-label={enabled ? "點擊探索此區域" : undefined}
     >
       {ripples.map((ripple) => (
         <div

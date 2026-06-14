@@ -10,7 +10,7 @@ export default function BrowserContent({
   isLoading = false,
 }: BrowserContentProps) {
   return (
-    <div className="browser-content" role="region" aria-label="Visual content">
+    <div className="browser-content" role="region" aria-label="視覺內容">
       {children}
     </div>
   );

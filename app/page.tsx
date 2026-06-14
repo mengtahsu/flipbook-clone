@@ -95,7 +95,7 @@ export default function HomePage() {
         };
 
         if (!image) {
-          setError("No image found. Try a different search.");
+          setError("找不到圖片，請嘗試其他搜尋");
         }
 
         setPages((prev) => {

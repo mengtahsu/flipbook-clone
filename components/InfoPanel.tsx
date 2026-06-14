@@ -39,7 +39,7 @@ export default function InfoPanel({
       )}
 
       <p className="info-panel-credit">
-        Photo by{" "}
+        攝影師：{" "}
         <a href={credit.url} target="_blank" rel="noopener noreferrer">
           {credit.name}
         </a>

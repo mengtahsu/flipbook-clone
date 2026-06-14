@@ -64,8 +64,8 @@ export default function ImageCanvas({
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
             </svg>
           </div>
-          <p className="empty-state-title">Type something in the search bar to begin.</p>
-          <p className="empty-state-body">Every result is a visual page. Click on anything that interests you to explore deeper.</p>
+          <p className="empty-state-title">在搜尋欄輸入關鍵詞開始探索</p>
+          <p className="empty-state-body">每個結果都是一個視覺頁面，點擊任意位置深入探索。</p>
         </div>
       )}
 
@@ -105,7 +105,7 @@ export default function ImageCanvas({
 
               {atMaxDepth && (
                 <div className="error-banner" style={{ background: "oklch(75% 0.14 95)", color: "var(--color-text)" }}>
-                  Max depth {maxDepth} layers. Click a breadcrumb to go back.
+                  已達最大深度 {maxDepth} 層，點擊麵包屑返回
                 </div>
               )}
             </>

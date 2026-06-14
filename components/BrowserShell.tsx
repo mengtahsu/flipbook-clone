@@ -10,7 +10,7 @@ export default function BrowserShell({ children }: BrowserShellProps) {
       <section className="browser-stage" aria-label="Flipbook browser">
         <section className="browser-window">{children}</section>
         <p className="browser-stage-caption">
-          Click anywhere on the image to explore deeper
+          點擊圖片任意位置深入探索
         </p>
       </section>
     </main>

@@ -9,7 +9,7 @@ interface SearchInputProps {
 }
 
 export default function SearchInput({
-  placeholder = "Ask about anything",
+  placeholder = "輸入任意關鍵詞探索",
   disabled = false,
   onSearch,
 }: SearchInputProps) {

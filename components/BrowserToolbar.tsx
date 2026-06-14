@@ -18,7 +18,7 @@ export default function BrowserToolbar({
   onSearch,
   onClear,
   isLoading,
-  placeholder = "Ask about anything",
+  placeholder = "輸入任意關鍵詞探索",
 }: BrowserToolbarProps) {
   const hasHistory = breadcrumbs.length > 0;
 
@@ -31,8 +31,8 @@ export default function BrowserToolbar({
             type="button"
             className="browser-close-button"
             onClick={onClear}
-            aria-label="Clear current history"
-            title="Clear history"
+            aria-label="清除瀏覽歷史"
+            title="清除歷史"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path
@@ -70,7 +70,7 @@ export default function BrowserToolbar({
           <SearchInput
             disabled={isLoading}
             placeholder={
-              hasHistory ? "Continue this session" : placeholder
+              hasHistory ? "繼續探索" : placeholder
             }
             onSearch={onSearch}
           />
@@ -80,8 +80,8 @@ export default function BrowserToolbar({
         <button
           type="button"
           className="browser-share-button"
-          aria-label="Share"
-          title="Share"
+          aria-label="分享"
+          title="分享"
           onClick={() => {
             const url = new URL(window.location.href);
             navigator.clipboard.writeText(url.toString()).catch(() => {});
