@@ -11,23 +11,7 @@ import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
 async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
-  // Pexels: no hotlink issues, professional quality, guaranteed loadable
-  try {
-    const res = await fetch("/api/pexels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: imageSearchTerm }) });
-    if (res.ok) {
-      const photos = await res.json();
-      if (Array.isArray(photos) && photos.length > 0) {
-        for (const p of photos) {
-          if (!usedUrls.has(p.url)) {
-            return { imageUrl: p.url, imageCredit: { name: p.source || "Pexels", url: p.url } };
-          }
-        }
-        return { imageUrl: photos[0].url, imageCredit: { name: photos[0].source || "Pexels", url: photos[0].url } };
-      }
-    }
-  } catch { /* ok */ }
-
-  // Fallback: DDG
+  // DDG first — broader coverage, more relevant results
   const DDG = "https://flipbook-clone-five.vercel.app/api/images";
   for (const term of [imageSearchTerm, imageSearchTerm.split(" ")[0]]) {
     try {
@@ -44,6 +28,22 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
       }
     } catch { /* try next */ }
   }
+
+  // Pexels fallback — only when DDG returns nothing
+  try {
+    const res = await fetch("/api/pexels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: imageSearchTerm }) });
+    if (res.ok) {
+      const photos = await res.json();
+      if (Array.isArray(photos) && photos.length > 0) {
+        for (const p of photos) {
+          if (!usedUrls.has(p.url)) {
+            return { imageUrl: p.url, imageCredit: { name: p.source || "Pexels", url: p.url } };
+          }
+        }
+        return { imageUrl: photos[0].url, imageCredit: { name: photos[0].source || "Pexels", url: photos[0].url } };
+      }
+    }
+  } catch { /* ok */ }
 
   return null;
 }
