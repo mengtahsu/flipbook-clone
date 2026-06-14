@@ -73,7 +73,13 @@ export default function ImageCanvas({
         <div className="result-frame">
           {page.imageUrl ? (
             <img
-              ref={imageRef}
+              ref={(el) => {
+                imageRef.current = el;
+                // If image is cached (preloaded), onLoad won't fire — check manually
+                if (el?.complete && el.naturalWidth > 0) {
+                  setIsImageLoaded(true);
+                }
+              }}
               crossOrigin="anonymous"
               className={`result-image${!isImageLoaded ? " result-image--loading" : ""}`}
               src={page.imageUrl}
@@ -83,10 +89,9 @@ export default function ImageCanvas({
               onError={(e) => {
                 const img = e.currentTarget;
                 const tried = parseInt(img.dataset.tried || "1", 10);
-                // Try adding cache-bust to retry same URL once
                 if (tried === 1) {
                   img.dataset.tried = "2";
-                  img.src = img.src.includes("?") ? img.src + "&r=1" : img.src + "?r=1";
+                  setTimeout(() => { img.src = img.src.includes("?") ? img.src + "&r=1" : img.src + "?r=1"; }, 500);
                 }
               }}
             />
@@ -94,12 +99,12 @@ export default function ImageCanvas({
             <LoadingSpinner />
           )}
 
-          {(isImageLoaded || !page.imageUrl) && (
+          {isImageLoaded && (
             <>
               <DepthIndicator depth={depth} maxDepth={maxDepth} />
 
               <ClickOverlay
-                enabled={!isLoading && !atMaxDepth && isImageLoaded}
+                enabled={!isLoading && !atMaxDepth}
                 onClick={handleClick}
               />
 
