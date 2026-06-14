@@ -7,15 +7,28 @@ import time
 from http.server import BaseHTTPRequestHandler
 from ddgs import DDGS
 
-_PENALIZED = {
-    "shutterstock.com", "istockphoto.com", "gettyimages.com",
-    "alamy.com", "depositphotos.com", "dreamstime.com", "123rf.com",
-    "unsplash.com", "pexels.com", "pixabay.com",  # stock photo CDNs
+# Domains to completely reject (ads, spam, irrelevant)
+_REJECT = {
+    "etsy.com", "ebay.com", "amazon.com", "aliexpress.com",
+    "pinterest.", "pinimg.com", "shutterstock.com", "istockphoto.com",
+    "gettyimages.com", "alamy.com", "depositphotos.com", "dreamstime.com",
+    "123rf.com", "unsplash.com", "pexels.com", "pixabay.com",
+    "vecteezy.com", "freepik.com", "stock.adobe.com",
+    "wallpaperflare.com", "wallpapercave.com", "wallpaperaccess.com",
+    "hdwallpapers.in", "wallpapersden.com", "eskipaper.com",
 }
-_PREFERRED_DOMAINS = {
-    "flickr.com", "wikimedia.org", "wikipedia.org",
-    "publicdomainpictures.net", "freeimages.com",
+_PREFERRED = {
+    "flickr.com", "wikimedia.org", "wikipedia.org", "commons.wikimedia.org",
+    "publicdomainpictures.net", "freeimages.com", "travel", "tourism",
+    "britannica.com", "lonelyplanet.com", "nationalgeographic.com",
 }
+
+
+def _is_rejected(url: str, source: str) -> bool:
+    for d in _REJECT:
+        if d in url or d in source:
+            return True
+    return False
 
 
 def _score(img: dict) -> float:
@@ -32,24 +45,25 @@ def _score(img: dict) -> float:
         ratio = w / h
         if 1.2 <= ratio <= 2.0: score += 2
         elif 0.8 <= ratio <= 3.0: score += 1
-    for d in _PENALIZED:
-        if d in url or d in source: score -= 5; break
-    for d in _PREFERRED_DOMAINS:
+    for d in _PREFERRED:
         if d in url or d in source: score += 3; break
     if len(img.get("title", "")) > 30: score += 0.5
     return score
 
 
-def search_images(query: str, max_results: int = 30) -> list[dict]:
+def search_images(query: str, max_results: int = 40) -> list[dict]:
     results = []
     seen = set()
     try:
         with DDGS() as ddgs:
-            for r in ddgs.images(query, max_results=max(max_results * 4, 30)):
+            for r in ddgs.images(query, max_results=max(max_results * 5, 80)):
                 url = r.get("image", "")
                 if not url or url in seen:
                     continue
                 seen.add(url)
+                # Skip ad/spam/stock domains entirely
+                if _is_rejected(url, r.get("source", "")):
+                    continue
                 img = {
                     "url": url,
                     "thumb": r.get("thumbnail", ""),
@@ -63,7 +77,7 @@ def search_images(query: str, max_results: int = 30) -> list[dict]:
                 if len(results) >= max_results:
                     break
     except Exception:
-        pass  # Return whatever we got (may be empty — caller handles)
+        pass
 
     if results:
         results.sort(key=lambda x: (x["_score"], x["width"] * x["height"]), reverse=True)

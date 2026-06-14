@@ -11,7 +11,7 @@ import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
 async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
-  // DDG first — broader coverage. Proxy through /api/img for Safari CORS compat
+  // DDG first — preload top candidates, pick first to actually load
   const DDG_API = "https://flipbook-clone-five.vercel.app/api/images";
   for (const term of [imageSearchTerm, imageSearchTerm.split(" ")[0]]) {
     try {
@@ -19,14 +19,31 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
       if (!res.ok) continue;
       const results = await res.json();
       if (Array.isArray(results) && results.length > 0) {
-        for (const r of results) {
-          const proxyUrl = `/api/img?url=${encodeURIComponent(r.url)}`;
-          if (!usedUrls.has(proxyUrl)) {
-            return { imageUrl: proxyUrl, imageCredit: { name: r.source || "DDG", url: r.url } };
-          }
-        }
-        const proxyUrl = `/api/img?url=${encodeURIComponent(results[0].url)}`;
-        return { imageUrl: proxyUrl, imageCredit: { name: results[0].source || "DDG", url: results[0].url } };
+        // Preload top 5 candidates in parallel, pick first valid one
+        const candidates = results.slice(0, 5);
+        let settled = false;
+        const winner = await Promise.race(
+          candidates.map((r: {url: string; source: string; title: string}) =>
+            new Promise<{imageUrl: string; credit: {name: string; url: string}} | null>((resolve) => {
+              const proxyUrl = `/api/img?url=${encodeURIComponent(r.url)}`;
+              if (usedUrls.has(proxyUrl)) { resolve(null); return; }
+              const img = new Image();
+              const done = (val: typeof winner) => { if (!settled) { settled = true; resolve(val); } };
+              setTimeout(() => done(null), 7000);
+              img.onload = () => done({ imageUrl: proxyUrl, credit: { name: r.source || "DDG", url: r.url } });
+              img.onerror = () => {
+                // Proxy failed — try direct URL as last resort
+                const img2 = new Image();
+                img2.onload = () => done({ imageUrl: r.url, credit: { name: r.source || "DDG", url: r.url } });
+                img2.onerror = () => done(null);
+                img2.src = r.url;
+              };
+              img.src = proxyUrl;
+            })
+          )
+        );
+        if (winner) return winner;
+        // All candidates failed — fall through to Pexels
       }
     } catch { /* try next */ }
   }
