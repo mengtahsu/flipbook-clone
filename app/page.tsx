@@ -19,22 +19,23 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
       if (!res.ok) continue;
       const results = await res.json();
       if (Array.isArray(results) && results.length > 0) {
-        // Ask LLM to pick the best image by title/source relevance
+        // Vision ranking: send top 5 thumbnails to Groq, let it pick the best
         let candidates = results.slice(0, 10);
         try {
-          const pickRes = await fetch("/api/click", {
+          const top5 = candidates.slice(0, 5);
+          const prompt = `You are ranking images. Which image (0-4) is the BEST match for "${imageSearchTerm}"? Consider relevance, quality, and appropriateness. REJECT any NSFW/adult content. Output ONLY the index number (0-4).`;
+          const imageBlocks = top5.map((r: {thumb: string}) => ({ type: "image_url", image_url: { url: r.thumb } }));
+          const pickRes = await fetch("/api/vision", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              x: 50, y: 50, imageWidth: 1, imageHeight: 1,
-              currentTitle: "RANK_IMAGES",
-              currentDescription: `Pick the most relevant SAFE image for query: "${imageSearchTerm}". REJECT any NSFW/adult/inappropriate content. Images:\n${candidates.map((r: {title: string; source: string}, i: number) => `${i}: ${r.title} [${r.source}]`).join("\n")}`,
-              breadcrumbs: [], depth: 0,
+              image: top5[0].thumb || top5[0].url,
+              prompt: `Rank these 5 images for query "${imageSearchTerm}". Only return the index (0-4) of the best one: ${top5.map((r: {title: string}, i: number) => `[${i}] ${r.title}`).join(" ")}`,
             }),
           });
           if (pickRes.ok) {
-            const { subQuery } = await pickRes.json();
-            const match = subQuery.match(/\d+/);
+            const { result } = await pickRes.json();
+            const match = (result || "").match(/\d/);
             if (match) {
               const idx = parseInt(match[0], 10);
               if (idx >= 0 && idx < candidates.length) {
