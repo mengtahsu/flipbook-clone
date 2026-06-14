@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import BrowserShell from "@/components/BrowserShell";
 import BrowserToolbar from "@/components/BrowserToolbar";
 import BrowserContent from "@/components/BrowserContent";
@@ -92,11 +94,22 @@ async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
   return null;
 }
 
-export default function HomePage() {
+function HomePageInner() {
+  const searchParams = useSearchParams();
+  const autoQuery = searchParams.get("q");
+  const isEmbed = searchParams.get("embed") === "1";
+
   const [pages, setPages] = useState<PageData[]>([]);
   const [currentDepth, setCurrentDepth] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-search when ?q= is in URL
+  useEffect(() => {
+    if (autoQuery && pages.length === 0 && !isLoading) {
+      performSearch(autoQuery, 1);
+    }
+  }, [autoQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const breadcrumbs = pages.map((p) => p.title);
   const currentPage = pages.length > 0 ? pages[pages.length - 1] : null;
@@ -227,7 +240,7 @@ export default function HomePage() {
 
   return (
     <>
-      <BrowserShell>
+      <BrowserShell embed={isEmbed}>
         <BrowserToolbar
           breadcrumbs={breadcrumbs}
           onBreadcrumbClick={handleBreadcrumbClick}
@@ -261,7 +274,15 @@ export default function HomePage() {
         )}
       </BrowserShell>
 
-      <AboutSection />
+      {!isEmbed && <AboutSection />}
     </>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="loading-container"><div className="loading-spinner" /></div>}>
+      <HomePageInner />
+    </Suspense>
   );
 }
