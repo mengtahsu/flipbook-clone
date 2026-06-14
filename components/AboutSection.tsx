@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-14.ios-btn";
+const VERSION = "2026-06-14.vision";
 
 export default function AboutSection() {
   return (
