@@ -1,13 +1,13 @@
-import { DEEPSEEK_MODEL, MAX_TOKENS } from "./constants";
+import { GEMINI_MODEL, MAX_TOKENS } from "./constants";
 
-const DEEPSEEK_BASE = "https://api.deepseek.com/v1";
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function getApiKey(): string {
-  const raw = process.env.DEEPSEEK_API_KEY || "";
-  return raw.replace(/^./, (ch: string) => ch.charCodeAt(0) === 0xFEFF ? "" : ch).trim();
+  const raw = process.env.GEMINI_API_KEY || "";
+  return raw.replace(/^./, (ch: string) => (ch.charCodeAt(0) === 0xFEFF ? "" : ch)).trim();
 }
 
-const SEARCH_SYSTEM_PROMPT = `You are helping a visual browser generate pages. Given a search query, return a JSON object. ALL text MUST be in Taiwan Traditional Chinese (繁體中文) except imageSearchTerm (English for photo search).
+const SEARCH_PROMPT = `You are helping a visual browser generate pages. Given a search query, return a JSON object. ALL text MUST be in Taiwan Traditional Chinese (繁體中文) except imageSearchTerm (English for photo search).
 
 Fields:
 - title: page title in Taiwan Traditional Chinese (繁體中文) (max 20 chars).
@@ -18,7 +18,7 @@ Fields:
 Return ONLY valid JSON:
 {"title": "...", "description": "...", "imageSearchTerm": "...", "subtopics": ["...", "..."]}`;
 
-const CLICK_FALLBACK_PROMPT = `You are helping a visual browser interpret user clicks. The user clicked on an image. Given the click position, page title, description, and exploration history, infer what the user clicked and generate a Taiwan Traditional Chinese (繁體中文) search query. Include context from the parent topic so the search is specific and relevant.
+const CLICK_PROMPT = `You are helping a visual browser interpret user clicks on an image. You are shown the actual cropped region the user clicked. Look at the crop, identify the specific object / place / feature / activity there, and generate a Taiwan Traditional Chinese (繁體中文) search query to explore it deeper. Use the parent topic for context so the query is specific and relevant.
 
 Return ONLY valid JSON: {"subQuery": "the Taiwan Traditional Chinese search query"}`;
 
@@ -33,32 +33,38 @@ export interface ClickInference {
   subQuery: string;
 }
 
-async function deepseekChat(messages: { role: string; content: string }[]): Promise<string> {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
+interface GeminiPart {
+  text?: string;
+  inline_data?: { mime_type: string; data: string };
+}
 
-  const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
+/** Call Gemini generateContent in JSON mode. `parts` may mix text and inline image data. */
+async function geminiGenerate(parts: GeminiPart[]): Promise<string> {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+
+  const res = await fetch(`${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      max_tokens: MAX_TOKENS,
-      messages,
-      temperature: 0.7,
-      stream: false,
+      contents: [{ parts }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        maxOutputTokens: MAX_TOKENS,
+        temperature: 0.7,
+      },
     }),
   });
 
   const rawText = await res.text();
-  if (!res.ok) throw new Error(`DeepSeek API ${res.status}: ${rawText.slice(0, 200)}`);
+  if (!res.ok) throw new Error(`Gemini API ${res.status}: ${rawText.slice(0, 200)}`);
 
   const data = JSON.parse(rawText) as {
-    choices: Array<{ message: { content: string } }>;
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
   };
-  return data.choices[0]?.message?.content || "";
+  const cand = data.candidates?.[0];
+  if (cand?.finishReason === "MAX_TOKENS") throw new Error("Gemini response truncated (MAX_TOKENS)");
+  return (cand?.content?.parts || []).map((p) => p.text || "").join("");
 }
 
 function parseJSON<T>(text: string, label: string): T {
@@ -75,9 +81,8 @@ export async function breakdownQuery(
     ? `\n\nExploration history: ${breadcrumbs.join(" > ")}`
     : "";
 
-  const text = await deepseekChat([
-    { role: "system", content: SEARCH_SYSTEM_PROMPT },
-    { role: "user", content: `Search query: "${query}"${context}` },
+  const text = await geminiGenerate([
+    { text: `${SEARCH_PROMPT}\n\nSearch query: "${query}"${context}` },
   ]);
 
   const parsed = parseJSON<SearchBreakdown>(text, "Search");
@@ -92,27 +97,38 @@ export async function breakdownQuery(
   };
 }
 
-// Vision via DeepSeek not yet supported (API rejects image_url type).
-// Image crop is captured but we use coordinate-based inference with full context.
-
-/** Coordinate-based click inference with subtopic hints */
+/**
+ * Vision-based click inference: Gemini looks at the cropped region the user
+ * clicked and returns a Traditional-Chinese sub-query. Falls back to
+ * coordinate + context reasoning when no crop is available.
+ */
 export async function inferClickIntent(
-  x: number, y: number,
+  imageCrop: string | null | undefined,
+  x: number,
+  y: number,
   currentTitle: string,
   currentDescription: string,
   breadcrumbs: string[]
 ): Promise<ClickInference> {
-  const text = await deepseekChat([
-    { role: "system", content: CLICK_FALLBACK_PROMPT },
-    {
-      role: "user",
-      content: `Page: "${currentTitle}" — ${currentDescription}
+  const context = `${CLICK_PROMPT}
+
+Parent page: "${currentTitle}" — ${currentDescription}
 History: ${breadcrumbs.length > 0 ? breadcrumbs.join(" > ") : "(start)"}
-Click at (${x}%, ${y}%)
-What did the user click? Generate a Taiwan Traditional Chinese search query.`,
-    },
-  ]);
-  const parsed = parseJSON<ClickInference>(text, "Click fallback");
+The user clicked at (${x}%, ${y}%) of the image.${
+    imageCrop ? " The cropped region is attached — look at it." : " No crop available; infer from position and context."
+  }`;
+
+  const parts: GeminiPart[] = [];
+  if (imageCrop) {
+    const comma = imageCrop.indexOf(",");
+    const b64 = comma >= 0 ? imageCrop.slice(comma + 1) : imageCrop;
+    const mimeMatch = imageCrop.match(/^data:([^;]+);/);
+    parts.push({ inline_data: { mime_type: mimeMatch ? mimeMatch[1] : "image/jpeg", data: b64 } });
+  }
+  parts.push({ text: context });
+
+  const text = await geminiGenerate(parts);
+  const parsed = parseJSON<ClickInference>(text, "Click");
   if (!parsed.subQuery) throw new Error(`Missing subQuery: ${JSON.stringify(parsed)}`);
   return parsed;
 }
