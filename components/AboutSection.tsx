@@ -1,6 +1,6 @@
 "use client";
 
-const VERSION = "2026-06-14.vision";
+const VERSION = "2026-07-02.gemini-serper";
 
 export default function AboutSection() {
   return (
@@ -14,13 +14,13 @@ export default function AboutSection() {
         <a href="https://flipbook.page" target="_blank" rel="noreferrer">
           flipbook.page
         </a>
-        {" "}&middot; 圖片：DuckDuckGo &middot; LLM：DeepSeek
+        {" "}&middot; 圖片：Google（Serper）&middot; LLM：Gemini
       </p>
 
       <div className="about-body">
         <p>
-          每個「頁面」都是一張來自 DuckDuckGo 的照片，搭配 AI 生成的上下文。
-          點擊任意位置，系統會找到最近的區域，生成一個深入探索該主題的新頁面。
+          每個「頁面」都是一張來自 Google 的照片，搭配 AI 生成的上下文。
+          點擊圖片任意位置，Gemini 會「看」你點到的區塊，生成一個深入探索該主題的新頁面。
           最多可達 8 層深度。
         </p>
       </div>

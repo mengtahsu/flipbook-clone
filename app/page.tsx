@@ -12,70 +12,56 @@ import AboutSection from "@/components/AboutSection";
 import { MAX_DEPTH } from "@/lib/constants";
 import type { PageData } from "@/lib/types";
 
-async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
-  // DDG first — let LLM rank candidates by title relevance, then preload best
-  const DDG_API = "https://flipbook-clone-five.vercel.app/api/images";
-  for (const term of [imageSearchTerm, imageSearchTerm.split(" ")[0]]) {
-    try {
-      const res = await fetch(DDG_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: term }) });
-      if (!res.ok) continue;
-      const results = await res.json();
-      if (Array.isArray(results) && results.length > 0) {
-        // Vision ranking: send top 5 thumbnails to Groq, let it pick the best
-        let candidates = results.slice(0, 10);
-        try {
-          const top5 = candidates.slice(0, 5);
-          const prompt = `You are ranking images. Which image (0-4) is the BEST match for "${imageSearchTerm}"? Consider relevance, quality, and appropriateness. REJECT any NSFW/adult content. Output ONLY the index number (0-4).`;
-          const imageBlocks = top5.map((r: {thumb: string}) => ({ type: "image_url", image_url: { url: r.thumb } }));
-          const pickRes = await fetch("/api/vision", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              image: top5[0].thumb || top5[0].url,
-              prompt: `Rank these 5 images for query "${imageSearchTerm}". Only return the index (0-4) of the best one: ${top5.map((r: {title: string}, i: number) => `[${i}] ${r.title}`).join(" ")}`,
-            }),
-          });
-          if (pickRes.ok) {
-            const { result } = await pickRes.json();
-            const match = (result || "").match(/\d/);
-            if (match) {
-              const idx = parseInt(match[0], 10);
-              if (idx >= 0 && idx < candidates.length) {
-                candidates = [candidates[idx], ...candidates.filter((_: unknown, i: number) => i !== idx)];
-              }
-            }
-          }
-        } catch { /* keep DDG order */ }
+type ImgResult = { imageUrl: string; imageCredit: { name: string; url: string } } | null;
 
-        // Preload top 5 of LLM-ranked candidates, pick first valid one
-        const top5 = candidates.slice(0, 5);
-        let settled = false;
-        type ImgResult = { imageUrl: string; imageCredit: { name: string; url: string } } | null;
-        const winner: ImgResult = await Promise.race(
-          top5.map((r: {url: string; source: string; title: string}) =>
-            new Promise<ImgResult>((resolve) => {
-              const proxyUrl = `/api/img?url=${encodeURIComponent(r.url)}`;
-              if (usedUrls.has(proxyUrl)) { resolve(null); return; }
-              const img = new Image();
-              const done = (val: ImgResult) => { if (!settled) { settled = true; resolve(val); } };
-              setTimeout(() => done(null), 10000);
-              img.onload = () => done({ imageUrl: proxyUrl, imageCredit: { name: r.source || "DDG", url: r.url } });
-              img.onerror = () => {
-                const img2 = new Image();
-                img2.onload = () => done({ imageUrl: r.url, imageCredit: { name: r.source || "DDG", url: r.url } });
-                img2.onerror = () => done(null);
-                img2.src = r.url;
-              };
-              img.src = proxyUrl;
-            })
-          )
-        );
-        if (winner) return winner;
-      }
-    } catch { /* try next */ }
+async function fetchBestImage(imageSearchTerm: string, usedUrls: Set<string>) {
+  // Preload a few candidates, return the first that actually loads (via the
+  // /api/img proxy, with a direct-URL fallback for CORS). Serper and DDG both
+  // return relevance-ranked results, so we keep their order.
+  const pickLoadable = (results: { url: string; source?: string }[], fallbackName: string): Promise<ImgResult> => {
+    const top = results.slice(0, 6);
+    let settled = false;
+    return Promise.race(
+      top.map((r) =>
+        new Promise<ImgResult>((resolve) => {
+          const proxyUrl = `/api/img?url=${encodeURIComponent(r.url)}`;
+          if (usedUrls.has(proxyUrl)) { resolve(null); return; }
+          const done = (val: ImgResult) => { if (!settled) { settled = true; resolve(val); } };
+          setTimeout(() => done(null), 10000);
+          const img = new Image();
+          img.onload = () => done({ imageUrl: proxyUrl, imageCredit: { name: r.source || fallbackName, url: r.url } });
+          img.onerror = () => {
+            const img2 = new Image();
+            img2.onload = () => done({ imageUrl: r.url, imageCredit: { name: r.source || fallbackName, url: r.url } });
+            img2.onerror = () => done(null);
+            img2.src = r.url;
+          };
+          img.src = proxyUrl;
+        })
+      )
+    );
+  };
+
+  // Serper (Google Images) first for accuracy, then DDG.
+  const sources = [
+    { url: "/api/serper", name: "Google" },
+    { url: "https://flipbook-clone-five.vercel.app/api/images", name: "DDG" },
+  ];
+  for (const src of sources) {
+    for (const term of [imageSearchTerm, imageSearchTerm.split(" ")[0]]) {
+      try {
+        const res = await fetch(src.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: term }) });
+        if (!res.ok) continue;
+        const results = await res.json();
+        if (Array.isArray(results) && results.length > 0) {
+          const winner = await pickLoadable(results, src.name);
+          if (winner) return winner;
+        }
+      } catch { /* try next term / source */ }
+    }
   }
 
-  // Pexels fallback — only when DDG returns nothing
+  // Pexels fallback — only when Serper and DDG return nothing
   try {
     const res = await fetch("/api/pexels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: imageSearchTerm }) });
     if (res.ok) {
